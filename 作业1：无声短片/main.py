@@ -32,7 +32,7 @@ def opening() -> None:
     # INFO_FONT_SCALE = 1
     THICKNESS = 3
     # logo缩小，同时画面渐暗
-    nSeconds = 2
+    nSeconds = 3
     for i in range(1, nSeconds * FPS + 1):
         frame = np.zeros(FRAME_SIZE, np.uint8)
         fontScale = math.log(800 / i)
@@ -44,20 +44,25 @@ def opening() -> None:
                     THICKNESS)  # 参数：帧，文本，左下角坐标，字体，缩放，颜色，线条粗细
         cv2.imshow(WINDOW_NAME, frame)
         cv2.waitKey(FRAME_DURATION)
-    # 展示校徽
+    # 展示校徽，应用缩小及变暗效果
     schoolBadge = cv2.imread("images\\School Badge3.jpg")
-    frame = schoolBadge
-    nSeconds = 1
-    for i in range(1, nSeconds * FPS + 1):
+    nSeconds = 3
+    fps = 50
+    totalFrames = nSeconds * fps
+    BLACK_FRAME = np.zeros(FRAME_SIZE, np.uint8)
+    for i in range(1, totalFrames + 1):
+        scale = math.log(totalFrames * 3 / i, totalFrames * 3)
+        badgeHeight = round(FRAME_SIZE[0] * scale)
+        badgeWidth = round(FRAME_SIZE[1] * scale)
+        shrinkedBadge = cv2.resize(schoolBadge, (badgeWidth, badgeHeight))
+        frame = np.zeros(FRAME_SIZE, np.uint8)
+        rowBegin = 240 - round(badgeHeight / 2)
+        colBegin = 320 - round(badgeWidth / 2)
+        frame[rowBegin:rowBegin + badgeHeight, colBegin:colBegin + badgeWidth, :] = shrinkedBadge
+        weight = 1 - i / totalFrames
+        frame = cv2.addWeighted(frame, weight, BLACK_FRAME, 1 - weight, 0)
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(FRAME_DURATION)
-    black = np.zeros(FRAME_SIZE, np.uint8)
-    nSeconds = 2
-    for i in range(1, nSeconds * FPS + 1):
-        weight = math.log(nSeconds * FPS / i, nSeconds * FPS)
-        frame = cv2.addWeighted(schoolBadge, weight, black, 1 - weight, 0)
-        cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(FRAME_DURATION)
+        cv2.waitKey(round(1000 / fps))
     # 展示头像与信息，同时画面渐暗
     headImage = cv2.imread("images\\Head Image.jpg")
     # 利用PIL显示中文
@@ -74,7 +79,7 @@ def opening() -> None:
     nSeconds = 2
     for i in range(1, nSeconds * FPS + 1):
         weight = math.log(nSeconds * FPS / i, nSeconds * FPS)
-        frame = cv2.addWeighted(infoImg, weight, black, 1 - weight, 0)
+        frame = cv2.addWeighted(infoImg, weight, BLACK_FRAME, 1 - weight, 0)
         cv2.imshow(WINDOW_NAME, frame)
         cv2.waitKey(FRAME_DURATION)
 
@@ -322,8 +327,9 @@ def ending() -> None:
         cv2.waitKey(frameDuration)
 
 
+initialize()
 opening()
-setupScene()
-mainContent()
-ending()
+# setupScene()
+# mainContent()
+# ending()
 cv2.waitKey(0)
