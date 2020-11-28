@@ -8,6 +8,7 @@ WINDOW_NAME = "Animation"
 FPS = 25
 FRAME_DURATION = int(1000 / FPS)
 WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
 DASH_LINE_LENGTH = 96  # 允许跨越同向分隔线的长度
 DASH_LINE_WIDTH = 16
 LINE_INTERVAL = 32  # 允许跨越同向分隔线之间的距离
@@ -31,7 +32,7 @@ def opening() -> None:
     # INFO_FONT_SCALE = 1
     THICKNESS = 3
     # logo缩小，同时画面渐暗
-    nSeconds = 3
+    nSeconds = 2
     for i in range(1, nSeconds * FPS + 1):
         frame = np.zeros(FRAME_SIZE, np.uint8)
         fontScale = math.log(800 / i)
@@ -76,7 +77,6 @@ def opening() -> None:
         frame = cv2.addWeighted(infoImg, weight, black, 1 - weight, 0)
         cv2.imshow(WINDOW_NAME, frame)
         cv2.waitKey(FRAME_DURATION)
-    cv2.waitKey(0)
 
 
 def drawCircle_progressive(frame: np.array, center: tuple, radius: float, nSteps: int, color: tuple,
@@ -180,7 +180,7 @@ def drawDashLines(frame: np.array, firstLineCenterX: int) -> int:
         cv2.rectangle(frame, (x - round(DASH_LINE_LENGTH / 2), 240 - round(DASH_LINE_WIDTH / 2)),
                       (round(x + DASH_LINE_LENGTH / 2), 240 + round(DASH_LINE_WIDTH / 2)), WHITE, 2)
         x += DASH_LINE_LENGTH + LINE_INTERVAL
-    return firstLineCenterX - round(LINE_MOVE_SPEED / 25)
+    return firstLineCenterX - round(LINE_MOVE_SPEED / FPS)
 
 
 def setupScene() -> None:
@@ -197,7 +197,7 @@ def setupScene() -> None:
     drawCar_progressive(frame, LOWER_CAR_INIT_POS, 1, 4, WHITE, 2)
 
 
-def animation() -> None:
+def mainContent() -> None:
     # 第1阶段，车保持相对静止
     nSeconds = 2
     firstLineCenterX = 0
@@ -266,8 +266,64 @@ def animation() -> None:
         cv2.imshow(WINDOW_NAME, frame)
         cv2.waitKey(40)
     # 第7阶段，另一辆车进入视野，画面渐亮
+    nSeconds = 0.2
+    collisionCarCenterX = 640 + 32
+    for i in range(1, round(nSeconds * FPS + 1)):
+        frame = np.zeros(FRAME_SIZE, np.uint8)
+        drawCar(frame, (collisionCarCenterX, UPPER_CAR_INIT_POS[1]), 1, WHITE, 2)
+        collisionCarCenterX -= round(LINE_MOVE_SPEED / FPS)
+        drawCar(frame, UPPER_CAR_END_POS, 1, WHITE, 2)
+        drawCar(frame, LOWER_CAR_END_POS, 1, WHITE, 2)
+        firstLineCenterX = drawDashLines(frame, firstLineCenterX)
+        cv2.imshow(WINDOW_NAME, frame)
+        cv2.waitKey(40)
+    nSeconds = 0.5
+    totalSteps = int(nSeconds * FPS)
+    WHITE_FRAME = np.full(FRAME_SIZE, 255, np.uint8)
+    for i in range(1, totalSteps + 1):
+        weight = 1 - i / totalSteps
+        frame = np.zeros(FRAME_SIZE, np.uint8)
+        frame = cv2.addWeighted(frame, weight, WHITE_FRAME, 1 - weight, 0)
+        drawCar(frame, (collisionCarCenterX, UPPER_CAR_INIT_POS[1]), 1, WHITE, 2)
+        collisionCarCenterX -= round(LINE_MOVE_SPEED / FPS)
+        cv2.putText(frame, "!", (UPPER_CAR_END_POS[0] + 72, UPPER_CAR_END_POS[1] - 10), cv2.FONT_HERSHEY_COMPLEX, 2,
+                    WHITE, 2)
+        drawCar(frame, UPPER_CAR_END_POS, 1, WHITE, 2)
+        drawCar(frame, LOWER_CAR_END_POS, 1, WHITE, 2)
+        firstLineCenterX = drawDashLines(frame, firstLineCenterX)
+        cv2.imshow(WINDOW_NAME, frame)
+        cv2.waitKey(40)
 
 
-BLACK_FRAME = np.zeros(FRAME_SIZE, np.uint8)
-animation()
+def ending() -> None:
+    nSeconds = 1
+    totalFrames = round(nSeconds * FPS)
+    for i in range(1, totalFrames + 1):
+        frame = np.full(FRAME_SIZE, 255, np.uint8)
+        cv2.imshow(WINDOW_NAME, frame)
+        cv2.waitKey(40)
+    nSeconds = 0.5
+    MAX_FONT_SIZE = 48
+    fps = 50
+    frameDuration = round(1000 / fps)
+    totalFrames = round(nSeconds * fps)
+    for i in range(1, totalFrames + 1):
+        frame = np.full(FRAME_SIZE, 255, np.uint8)
+        cv2Frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  # 通道顺序转换
+        pilFrame = Image.fromarray(cv2Frame)  # 转为PIL图像
+        draw = ImageDraw.Draw(pilFrame)  # 创建一个绘图对象
+        fontSize = round(MAX_FONT_SIZE * i / totalFrames)
+        fontStyle = ImageFont.truetype("font\\STXINWEI.TTF", size=fontSize, encoding="UTF-8")  # 创建字体对象，字体使用华文新魏
+        x = round(320 - i / totalFrames * MAX_FONT_SIZE * 2.5)
+        y = round(240 - i / totalFrames * MAX_FONT_SIZE * 1.5)
+        draw.text((x, y), "安全无小事\n\n莫开英雄车", BLACK, font=fontStyle)
+        frame = cv2.cvtColor(np.asarray(pilFrame), cv2.COLOR_RGB2BGR)  # 转换回cv图像
+        cv2.imshow(WINDOW_NAME, frame)
+        cv2.waitKey(frameDuration)
+
+
+opening()
+setupScene()
+mainContent()
+ending()
 cv2.waitKey(0)
