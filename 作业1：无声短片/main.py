@@ -102,7 +102,8 @@ def drawCircle_progressive(frame: np.array, center: tuple, radius: float, nSteps
         endPos = (int(center[0] + radius * math.sin(endRad)), int(center[1] - radius * math.cos(endRad)))
         cv2.line(frame, startPos, endPos, color, thickness)  # 注意：cv2的坐标是以(x,y)表示的
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(FRAME_DURATION)
+        #cv2.waitKey(FRAME_DURATION)
+        waitKey(FRAME_DURATION)
 
 
 def drawLine_progressive(frame: np.array, startPos: tuple, endPos: tuple, nSeconds: float, color: tuple,
@@ -113,7 +114,8 @@ def drawLine_progressive(frame: np.array, startPos: tuple, endPos: tuple, nSecon
         y = int(startPos[1] + i / TOTAL_STEPS * (endPos[1] - startPos[1]))
         cv2.line(frame, startPos, (x, y), color, thickness)
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(FRAME_DURATION)
+        #cv2.waitKey(FRAME_DURATION)
+        waitKey(FRAME_DURATION)
 
 
 def drawRect_progressive(frame: np.array, center: tuple, xSpan: int, ySpan: int, xNSeconds: float, yNSeconds: float,
@@ -221,7 +223,8 @@ def mainContent() -> None:
         drawCar(frame, LOWER_CAR_INIT_POS, 1, WHITE, 2)
         firstLineCenterX = drawDashLines(frame, firstLineCenterX)
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(40)
+        #cv2.waitKey(40)
+        waitKey(FRAME_DURATION)
     # 第2阶段，上方车超越
     nSeconds = 1
     for i in range(1, nSeconds * FPS + 1):
@@ -234,7 +237,8 @@ def mainContent() -> None:
         drawCar(frame, (lowerCarCenterX, LOWER_CAR_INIT_POS[1]), 1, WHITE, 2)
         firstLineCenterX = drawDashLines(frame, firstLineCenterX)
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(40)
+        #cv2.waitKey(40)
+        waitKey(FRAME_DURATION)
     # 第3阶段，相对静止
     nSeconds = 1
     for i in range(1, nSeconds * FPS + 1):
@@ -243,7 +247,8 @@ def mainContent() -> None:
         drawCar(frame, LOWER_CAR_END_POS, 1, WHITE, 2)
         firstLineCenterX = drawDashLines(frame, firstLineCenterX)
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(40)
+        #cv2.waitKey(40)
+        waitKey(FRAME_DURATION)
     # 第4阶段，下方车超越
     nSeconds = 1
     for i in range(1, nSeconds * FPS + 1):
@@ -256,7 +261,8 @@ def mainContent() -> None:
         drawCar(frame, (lowerCarCenterX, LOWER_CAR_INIT_POS[1]), 1, WHITE, 2)
         firstLineCenterX = drawDashLines(frame, firstLineCenterX)
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(40)
+        #cv2.waitKey(40)
+        waitKey(FRAME_DURATION)
     # 第5阶段，相对静止
     nSeconds = 1
     for i in range(1, nSeconds * FPS + 1):
@@ -265,7 +271,8 @@ def mainContent() -> None:
         drawCar(frame, LOWER_CAR_INIT_POS, 1, WHITE, 2)
         firstLineCenterX = drawDashLines(frame, firstLineCenterX)
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(40)
+        #cv2.waitKey(40)
+        waitKey(FRAME_DURATION)
     # 第6阶段，上方车超越
     nSeconds = 1
     for i in range(1, nSeconds * FPS + 1):
@@ -278,7 +285,8 @@ def mainContent() -> None:
         drawCar(frame, (lowerCarCenterX, LOWER_CAR_INIT_POS[1]), 1, WHITE, 2)
         firstLineCenterX = drawDashLines(frame, firstLineCenterX)
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(40)
+        #cv2.waitKey(40)
+        waitKey(FRAME_DURATION)
     # 第7阶段，另一辆车进入视野，画面渐亮
     nSeconds = 0.2
     collisionCarCenterX = 640 + 32
@@ -290,7 +298,8 @@ def mainContent() -> None:
         drawCar(frame, LOWER_CAR_END_POS, 1, WHITE, 2)
         firstLineCenterX = drawDashLines(frame, firstLineCenterX)
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(40)
+        #cv2.waitKey(40)
+        waitKey(FRAME_DURATION)
     nSeconds = 0.5
     totalSteps = int(nSeconds * FPS)
     WHITE_FRAME = np.full(FRAME_SIZE, 255, np.uint8)
@@ -306,7 +315,8 @@ def mainContent() -> None:
         drawCar(frame, LOWER_CAR_END_POS, 1, WHITE, 2)
         firstLineCenterX = drawDashLines(frame, firstLineCenterX)
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(40)
+        #cv2.waitKey(40)
+        waitKey(FRAME_DURATION)
 
 
 def ending() -> None:
@@ -315,7 +325,8 @@ def ending() -> None:
     for i in range(1, totalFrames + 1):
         frame = np.full(FRAME_SIZE, 255, np.uint8)
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(40)
+        #cv2.waitKey(40)
+        waitKey(FRAME_DURATION)
     nSeconds = 0.5
     MAX_FONT_SIZE = 48
     fps = 50
@@ -333,7 +344,8 @@ def ending() -> None:
         draw.text((x, y), "安全无小事\n\n莫开英雄车", BLACK, font=fontStyle)
         frame = cv2.cvtColor(np.asarray(pilFrame), cv2.COLOR_RGB2BGR)  # 转换回cv图像
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(frameDuration)
+        #cv2.waitKey(frameDuration)
+        waitKey(frameDuration)
 
 
 def waitKey(delay: int):
@@ -358,7 +370,7 @@ def main():
         setupScene()
         mainContent()
         ending()
-    except InterruptedException as e:
+    except InterruptedException:
         cv2.destroyAllWindows()
     else:
         cv2.waitKey(0)
