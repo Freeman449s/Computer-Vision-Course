@@ -3,6 +3,11 @@ import numpy as np
 import math
 from PIL import Image, ImageDraw, ImageFont
 
+
+class InterruptedException(Exception):
+    pass
+
+
 FRAME_SIZE = (480, 640, 3)
 WINDOW_NAME = "Animation"
 FPS = 25
@@ -43,7 +48,8 @@ def opening() -> None:
         cv2.putText(frame, "T", bottom_left_for_logo, cv2.FONT_HERSHEY_SCRIPT_SIMPLEX, fontScale, logoColor,
                     THICKNESS)  # 参数：帧，文本，左下角坐标，字体，缩放，颜色，线条粗细
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(FRAME_DURATION)
+        # cv2.waitKey(FRAME_DURATION)
+        waitKey(FRAME_DURATION)
     # 展示校徽，应用缩小及变暗效果
     schoolBadge = cv2.imread("images\\School Badge3.jpg")
     nSeconds = 3
@@ -62,7 +68,8 @@ def opening() -> None:
         weight = 1 - i / totalFrames
         frame = cv2.addWeighted(frame, weight, BLACK_FRAME, 1 - weight, 0)
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(round(1000 / fps))
+        # cv2.waitKey(round(1000 / fps))
+        waitKey(round(1000 / fps))
     # 展示头像与信息，同时画面渐暗
     headImage = cv2.imread("images\\Head Image.jpg")
     # 利用PIL显示中文
@@ -75,13 +82,15 @@ def opening() -> None:
     nSeconds = 1
     for i in range(1, nSeconds * FPS + 1):
         cv2.imshow(WINDOW_NAME, infoImg)
-        cv2.waitKey(FRAME_DURATION)
+        # cv2.waitKey(FRAME_DURATION)
+        waitKey(FRAME_DURATION)
     nSeconds = 2
     for i in range(1, nSeconds * FPS + 1):
         weight = math.log(nSeconds * FPS / i, nSeconds * FPS)
         frame = cv2.addWeighted(infoImg, weight, BLACK_FRAME, 1 - weight, 0)
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(FRAME_DURATION)
+        # cv2.waitKey(FRAME_DURATION)
+        waitKey(FRAME_DURATION)
 
 
 def drawCircle_progressive(frame: np.array, center: tuple, radius: float, nSteps: int, color: tuple,
@@ -327,9 +336,32 @@ def ending() -> None:
         cv2.waitKey(frameDuration)
 
 
-initialize()
-opening()
-# setupScene()
-# mainContent()
-# ending()
-cv2.waitKey(0)
+def waitKey(delay: int):
+    key = cv2.waitKey(delay)
+    # 按下空格，进入等待
+    if key == 32:
+        # 除非按下空格，否则一直等待
+        while True:
+            key = cv2.waitKey(0)
+            if key == 32:
+                break
+            elif key == 27:
+                raise InterruptedException
+    elif key == 27:
+        raise InterruptedException()
+
+
+def main():
+    try:
+        initialize()
+        opening()
+        setupScene()
+        mainContent()
+        ending()
+    except InterruptedException as e:
+        cv2.destroyAllWindows()
+    else:
+        cv2.waitKey(0)
+
+
+main()
