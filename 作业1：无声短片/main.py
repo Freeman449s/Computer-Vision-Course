@@ -7,6 +7,15 @@ FRAME_SIZE = (480, 640, 3)
 WINDOW_NAME = "Animation"
 FPS = 25
 FRAME_DURATION = int(1000 / FPS)
+WHITE = (255, 255, 255)
+DASH_LINE_LENGTH = 96  # 允许跨越同向分隔线的长度
+DASH_LINE_WIDTH = 16
+LINE_INTERVAL = 32  # 允许跨越同向分隔线之间的距离
+LINE_MOVE_SPEED = 360  # 分隔线每秒移动的距离（像素）
+UPPER_CAR_INIT_POS = (160, 120)
+LOWER_CAR_INIT_POS = (240, 360)
+UPPER_CAR_END_POS = (240, 120)
+LOWER_CAR_END_POS = (160, 360)
 
 
 def initialize() -> None:
@@ -82,12 +91,9 @@ def drawCircle_progressive(frame: np.array, center: tuple, radius: float, nSteps
         cv2.waitKey(FRAME_DURATION)
 
 
-
-
-
-def drawLine_progressive(frame: np.array, startPos: tuple, endPos: tuple, nSeconds: int, color: tuple,
+def drawLine_progressive(frame: np.array, startPos: tuple, endPos: tuple, nSeconds: float, color: tuple,
                          thickness: int) -> None:
-    TOTAL_STEPS = nSeconds * FPS
+    TOTAL_STEPS = round(nSeconds * FPS)
     for i in range(1, TOTAL_STEPS + 1):
         x = int(startPos[0] + i / TOTAL_STEPS * (endPos[0] - startPos[0]))
         y = int(startPos[1] + i / TOTAL_STEPS * (endPos[1] - startPos[1]))
@@ -96,6 +102,172 @@ def drawLine_progressive(frame: np.array, startPos: tuple, endPos: tuple, nSecon
         cv2.waitKey(FRAME_DURATION)
 
 
-BLACK = np.zeros(FRAME_SIZE, np.uint8)
-drawLine_progressive(BLACK, (0, 240), (320, 240), 3, (255, 255, 255), 1)
+def drawRect_progressive(frame: np.array, center: tuple, xSpan: int, ySpan: int, xNSeconds: float, yNSeconds: float,
+                         color: tuple, thickness: int) -> None:
+    LEFT_TOP = (round(center[0] - xSpan / 2), round(center[1] - ySpan / 2))
+    RIGHT_TOP = (round(center[0] + xSpan / 2), round(center[1] - ySpan / 2))
+    LEFT_BOTTOM = (round(center[0] - xSpan / 2), round(center[1] + ySpan / 2))
+    RIGHT_BOTTOM = (round(center[0] + xSpan / 2), round(center[1] + ySpan / 2))
+    drawLine_progressive(frame, LEFT_TOP, RIGHT_TOP, xNSeconds, color, thickness)
+    drawLine_progressive(frame, RIGHT_TOP, RIGHT_BOTTOM, yNSeconds, color, thickness)
+    drawLine_progressive(frame, RIGHT_BOTTOM, LEFT_BOTTOM, xNSeconds, color, thickness)
+    drawLine_progressive(frame, LEFT_BOTTOM, LEFT_TOP, yNSeconds, color, thickness)
+
+
+def drawCar_progressive(frame: np.array, center: tuple, scale: float, nSeconds: float, color: tuple,
+                        thickness: int) -> None:
+    CAR_WIDTH = round(108 * scale)
+    CAR_HEIGHT = round(64 * scale)
+    RADIUS = 8 * scale
+    LEFT_TOP = (round(center[0] - CAR_WIDTH / 2), round(center[1] - CAR_HEIGHT / 2))
+    LEFT_BOTTOM = (round(center[0] - CAR_WIDTH / 2), round(center[1] + CAR_HEIGHT / 2))
+    RIGHT_TOP = (round(center[0] + CAR_WIDTH / 2), round(center[1] - CAR_HEIGHT / 2))
+    RIGHT_BOTTOM = (round(center[0] + CAR_WIDTH / 2), round(center[1] + CAR_HEIGHT / 2))
+    VERTICAL_DURATION = CIRCLE_DURATION = nSeconds / 8
+    CIRCLE_NSTEPS = round(CIRCLE_DURATION * FPS)
+    HORIZONTAL_DURATION = nSeconds / 4
+    drawLine_progressive(frame, LEFT_TOP, LEFT_BOTTOM, VERTICAL_DURATION, color, thickness)
+    drawLine_progressive(frame, LEFT_TOP, RIGHT_TOP, HORIZONTAL_DURATION, color, thickness)
+    drawLine_progressive(frame, RIGHT_TOP, RIGHT_BOTTOM, VERTICAL_DURATION, color, thickness)
+    drawLine_progressive(frame, LEFT_BOTTOM, (round(LEFT_BOTTOM[0] + CAR_WIDTH / 6), LEFT_BOTTOM[1]),
+                         HORIZONTAL_DURATION / 4, color, thickness)
+    drawCircle_progressive(frame, (round(LEFT_BOTTOM[0] + CAR_WIDTH / 6 + RADIUS), LEFT_BOTTOM[1]), RADIUS,
+                           CIRCLE_NSTEPS, color, thickness)
+    drawLine_progressive(frame, (round(LEFT_BOTTOM[0] + CAR_WIDTH / 6 + RADIUS * 2), LEFT_BOTTOM[1]),
+                         (round(RIGHT_BOTTOM[0] - CAR_WIDTH / 6 - RADIUS * 2), RIGHT_BOTTOM[1]),
+                         HORIZONTAL_DURATION / 2, color, thickness)
+    drawCircle_progressive(frame, (round(RIGHT_BOTTOM[0] - CAR_WIDTH / 6 - RADIUS), RIGHT_BOTTOM[1]), RADIUS,
+                           CIRCLE_NSTEPS, color, thickness)
+    drawLine_progressive(frame, (round(RIGHT_BOTTOM[0] - CAR_WIDTH / 6), RIGHT_BOTTOM[1]), RIGHT_BOTTOM,
+                         HORIZONTAL_DURATION / 4, color, thickness)
+
+
+def drawCar(frame: np.array, center: tuple, scale: float, color: tuple, thickness: int) -> None:
+    """
+    立即绘制小车。
+    注意：函数只更新帧，不会将帧显示出来，必须手动调用imshow()和wiatKey()\n
+    :param frame: 待修改的帧
+    :param center: 小车的中心
+    :param scale: 小车的缩放比
+    :param color: 小车的颜色
+    :param thickness: 笔画的粗细
+    :return: 无返回值
+    """
+    CAR_WIDTH = round(108 * scale)
+    CAR_HEIGHT = round(64 * scale)
+    RADIUS = 8 * scale
+    LEFT_TOP = (round(center[0] - CAR_WIDTH / 2), round(center[1] - CAR_HEIGHT / 2))
+    LEFT_BOTTOM = (round(center[0] - CAR_WIDTH / 2), round(center[1] + CAR_HEIGHT / 2))
+    RIGHT_TOP = (round(center[0] + CAR_WIDTH / 2), round(center[1] - CAR_HEIGHT / 2))
+    RIGHT_BOTTOM = (round(center[0] + CAR_WIDTH / 2), round(center[1] + CAR_HEIGHT / 2))
+    cv2.line(frame, LEFT_TOP, RIGHT_TOP, color, thickness)
+    cv2.line(frame, LEFT_TOP, LEFT_BOTTOM, color, thickness)
+    cv2.line(frame, RIGHT_TOP, RIGHT_BOTTOM, color, thickness)
+    cv2.line(frame, LEFT_BOTTOM, (round(LEFT_BOTTOM[0] + CAR_WIDTH / 6), LEFT_BOTTOM[1]), color, thickness)
+    cv2.line(frame, (round(LEFT_BOTTOM[0] + CAR_WIDTH / 6 + RADIUS * 2), LEFT_BOTTOM[1]),
+             (round(RIGHT_BOTTOM[0] - CAR_WIDTH / 6 - RADIUS * 2), RIGHT_BOTTOM[1]), color, thickness)
+    cv2.line(frame, (round(RIGHT_BOTTOM[0] - CAR_WIDTH / 6), RIGHT_BOTTOM[1]), RIGHT_BOTTOM, color, thickness)
+    cv2.circle(frame, (round(LEFT_BOTTOM[0] + CAR_WIDTH / 6 + RADIUS), LEFT_BOTTOM[1]), RADIUS, color, thickness)
+    cv2.circle(frame, (round(RIGHT_BOTTOM[0] - CAR_WIDTH / 6 - RADIUS), RIGHT_BOTTOM[1]), RADIUS, color, thickness)
+
+
+def drawDashLines(frame: np.array, firstLineCenterX: int) -> int:
+    if (firstLineCenterX <= -DASH_LINE_LENGTH / 2):
+        firstLineCenterX += DASH_LINE_LENGTH + LINE_INTERVAL
+    x = firstLineCenterX
+    while x <= 640 + DASH_LINE_LENGTH / 2:
+        # drawRect_progressive(frame, (x, 240), DASH_LINE_LENGTH, DASH_LINE_WIDTH, 1, 0.5, WHITE, 2)x
+        cv2.rectangle(frame, (x - round(DASH_LINE_LENGTH / 2), 240 - round(DASH_LINE_WIDTH / 2)),
+                      (round(x + DASH_LINE_LENGTH / 2), 240 + round(DASH_LINE_WIDTH / 2)), WHITE, 2)
+        x += DASH_LINE_LENGTH + LINE_INTERVAL
+    return firstLineCenterX - round(LINE_MOVE_SPEED / 25)
+
+
+def setupScene() -> None:
+    """
+    布置场景\n
+    :return: 无返回值
+    """
+    frame = np.zeros(FRAME_SIZE, np.uint8)
+    x = 0
+    while x <= 640 + DASH_LINE_LENGTH / 2:
+        drawRect_progressive(frame, (x, 240), DASH_LINE_LENGTH, DASH_LINE_WIDTH, 1, 0.5, WHITE, 2)
+        x += DASH_LINE_LENGTH + LINE_INTERVAL
+    drawCar_progressive(frame, UPPER_CAR_INIT_POS, 1, 4, WHITE, 2)
+    drawCar_progressive(frame, LOWER_CAR_INIT_POS, 1, 4, WHITE, 2)
+
+
+def animation() -> None:
+    # 第1阶段，车保持相对静止
+    nSeconds = 2
+    firstLineCenterX = 0
+    for i in range(1, nSeconds * FPS + 1):
+        frame = np.zeros(FRAME_SIZE, np.uint8)
+        drawCar(frame, UPPER_CAR_INIT_POS, 1, WHITE, 2)
+        drawCar(frame, LOWER_CAR_INIT_POS, 1, WHITE, 2)
+        firstLineCenterX = drawDashLines(frame, firstLineCenterX)
+        cv2.imshow(WINDOW_NAME, frame)
+        cv2.waitKey(40)
+    # 第2阶段，上方车超越
+    nSeconds = 1
+    for i in range(1, nSeconds * FPS + 1):
+        frame = np.zeros(FRAME_SIZE, np.uint8)
+        upperCarCenterX = round(
+            i / (nSeconds * FPS) * (UPPER_CAR_END_POS[0] - UPPER_CAR_INIT_POS[0]) + UPPER_CAR_INIT_POS[0])
+        lowerCarCenterX = round(
+            i / (nSeconds * FPS) * (LOWER_CAR_END_POS[0] - LOWER_CAR_INIT_POS[0]) + LOWER_CAR_INIT_POS[0])
+        drawCar(frame, (upperCarCenterX, UPPER_CAR_INIT_POS[1]), 1, WHITE, 2)
+        drawCar(frame, (lowerCarCenterX, LOWER_CAR_INIT_POS[1]), 1, WHITE, 2)
+        firstLineCenterX = drawDashLines(frame, firstLineCenterX)
+        cv2.imshow(WINDOW_NAME, frame)
+        cv2.waitKey(40)
+    # 第3阶段，相对静止
+    nSeconds = 1
+    for i in range(1, nSeconds * FPS + 1):
+        frame = np.zeros(FRAME_SIZE, np.uint8)
+        drawCar(frame, UPPER_CAR_END_POS, 1, WHITE, 2)
+        drawCar(frame, LOWER_CAR_END_POS, 1, WHITE, 2)
+        firstLineCenterX = drawDashLines(frame, firstLineCenterX)
+        cv2.imshow(WINDOW_NAME, frame)
+        cv2.waitKey(40)
+    # 第4阶段，下方车超越
+    nSeconds = 1
+    for i in range(1, nSeconds * FPS + 1):
+        frame = np.zeros(FRAME_SIZE, np.uint8)
+        upperCarCenterX = round(
+            i / (nSeconds * FPS) * (UPPER_CAR_INIT_POS[0] - UPPER_CAR_END_POS[0]) + UPPER_CAR_END_POS[0])
+        lowerCarCenterX = round(
+            i / (nSeconds * FPS) * (LOWER_CAR_INIT_POS[0] - LOWER_CAR_END_POS[0]) + LOWER_CAR_END_POS[0])
+        drawCar(frame, (upperCarCenterX, UPPER_CAR_INIT_POS[1]), 1, WHITE, 2)
+        drawCar(frame, (lowerCarCenterX, LOWER_CAR_INIT_POS[1]), 1, WHITE, 2)
+        firstLineCenterX = drawDashLines(frame, firstLineCenterX)
+        cv2.imshow(WINDOW_NAME, frame)
+        cv2.waitKey(40)
+    # 第5阶段，相对静止
+    nSeconds = 1
+    for i in range(1, nSeconds * FPS + 1):
+        frame = np.zeros(FRAME_SIZE, np.uint8)
+        drawCar(frame, UPPER_CAR_INIT_POS, 1, WHITE, 2)
+        drawCar(frame, LOWER_CAR_INIT_POS, 1, WHITE, 2)
+        firstLineCenterX = drawDashLines(frame, firstLineCenterX)
+        cv2.imshow(WINDOW_NAME, frame)
+        cv2.waitKey(40)
+    # 第6阶段，上方车超越
+    nSeconds = 1
+    for i in range(1, nSeconds * FPS + 1):
+        frame = np.zeros(FRAME_SIZE, np.uint8)
+        upperCarCenterX = round(
+            i / (nSeconds * FPS) * (UPPER_CAR_END_POS[0] - UPPER_CAR_INIT_POS[0]) + UPPER_CAR_INIT_POS[0])
+        lowerCarCenterX = round(
+            i / (nSeconds * FPS) * (LOWER_CAR_END_POS[0] - LOWER_CAR_INIT_POS[0]) + LOWER_CAR_INIT_POS[0])
+        drawCar(frame, (upperCarCenterX, UPPER_CAR_INIT_POS[1]), 1, WHITE, 2)
+        drawCar(frame, (lowerCarCenterX, LOWER_CAR_INIT_POS[1]), 1, WHITE, 2)
+        firstLineCenterX = drawDashLines(frame, firstLineCenterX)
+        cv2.imshow(WINDOW_NAME, frame)
+        cv2.waitKey(40)
+    # 第7阶段，另一辆车进入视野，画面渐亮
+
+
+BLACK_FRAME = np.zeros(FRAME_SIZE, np.uint8)
+animation()
 cv2.waitKey(0)
