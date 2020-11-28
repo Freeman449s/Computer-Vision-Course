@@ -5,6 +5,8 @@ from PIL import Image, ImageDraw, ImageFont
 
 FRAME_SIZE = (480, 640, 3)
 WINDOW_NAME = "Animation"
+FPS = 25
+FRAME_DURATION = int(1000 / FPS)
 
 
 def initialize() -> None:
@@ -21,31 +23,31 @@ def opening() -> None:
     THICKNESS = 3
     # logo缩小，同时画面渐暗
     nSeconds = 3
-    for i in range(1, nSeconds * 25 + 1):
+    for i in range(1, nSeconds * FPS + 1):
         frame = np.zeros(FRAME_SIZE, np.uint8)
         fontScale = math.log(800 / i)
         bottom_left_for_logo = (int(320 - 10 * fontScale), 240)
-        colorScale = math.log(nSeconds * 25 / i, nSeconds * 25)
+        colorScale = math.log(nSeconds * FPS / i, nSeconds * FPS)
         logoColor = (int(LOGO_COLOR[0] * colorScale), int(LOGO_COLOR[1] * colorScale), int(LOGO_COLOR[2] * colorScale))
         # THICKNESS = int(math.log(1600 / (i + 1)))
         cv2.putText(frame, "T", bottom_left_for_logo, cv2.FONT_HERSHEY_SCRIPT_SIMPLEX, fontScale, logoColor,
                     THICKNESS)  # 参数：帧，文本，左下角坐标，字体，缩放，颜色，线条粗细
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(40)
+        cv2.waitKey(FRAME_DURATION)
     # 展示校徽
     schoolBadge = cv2.imread("images\\School Badge3.jpg")
     frame = schoolBadge
     nSeconds = 1
-    for i in range(1, nSeconds * 25 + 1):
+    for i in range(1, nSeconds * FPS + 1):
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(40)
+        cv2.waitKey(FRAME_DURATION)
     black = np.zeros(FRAME_SIZE, np.uint8)
     nSeconds = 2
-    for i in range(1, nSeconds * 25 + 1):
-        weight = math.log(nSeconds * 25 / i, nSeconds * 25)
+    for i in range(1, nSeconds * FPS + 1):
+        weight = math.log(nSeconds * FPS / i, nSeconds * FPS)
         frame = cv2.addWeighted(schoolBadge, weight, black, 1 - weight, 0)
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(40)
+        cv2.waitKey(FRAME_DURATION)
     # 展示头像与信息，同时画面渐暗
     headImage = cv2.imread("images\\Head Image.jpg")
     # 利用PIL显示中文
@@ -56,15 +58,15 @@ def opening() -> None:
     draw.text(INFO_POSITION, "3180101042 唐敏哲", INFO_COLOR, font=fontStyle)
     infoImg = cv2.cvtColor(np.asarray(pilFrame), cv2.COLOR_RGB2BGR)  # 转换回cv图像
     nSeconds = 1
-    for i in range(1, nSeconds * 25 + 1):
+    for i in range(1, nSeconds * FPS + 1):
         cv2.imshow(WINDOW_NAME, infoImg)
-        cv2.waitKey(40)
+        cv2.waitKey(FRAME_DURATION)
     nSeconds = 2
-    for i in range(1, nSeconds * 25 + 1):
-        weight = math.log(nSeconds * 25 / i, nSeconds * 25)
+    for i in range(1, nSeconds * FPS + 1):
+        weight = math.log(nSeconds * FPS / i, nSeconds * FPS)
         frame = cv2.addWeighted(infoImg, weight, black, 1 - weight, 0)
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(40)
+        cv2.waitKey(FRAME_DURATION)
     cv2.waitKey(0)
 
 
@@ -77,47 +79,23 @@ def drawCircle_progressive(frame: np.array, center: tuple, radius: float, nSteps
         endPos = (int(center[0] + radius * math.sin(endRad)), int(center[1] - radius * math.cos(endRad)))
         cv2.line(frame, startPos, endPos, color, thickness)  # 注意：cv2的坐标是以(x,y)表示的
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(40)
+        cv2.waitKey(FRAME_DURATION)
 
 
-def drawRectangle_progressive(frame: np.array, center: tuple, xSpan: int, ySpan: int, color: tuple,
-                              thickness: int) -> None:
-    if xSpan > ySpan:
-        xDuration = 1
-        yDuration = 0.5
-    else:
-        xDuration = 0.5
-        yDuration = 1
-    TOP_LEFT = (int(center[0] - xSpan / 2), int(center[1] - ySpan / 2))
-    TOP_RIGHT = (int(center[0] + xSpan / 2), int(center[1] - ySpan / 2))
-    BOTTOM_RIGHT = (int(center[0] + xSpan / 2), int(center[1] + ySpan / 2))
-    BOTTOM_LEFT = (int(center[0] - xSpan / 2), int(center[1] + ySpan / 2))
-    startPos = TOP_LEFT
-    for i in range(1, math.floor(xDuration * 25 + 1)):
-        endPos = (int(startPos[0] + xSpan * i / (xDuration * 25)), startPos[1])
-        cv2.line(frame, startPos, endPos, color, thickness)
+
+
+
+def drawLine_progressive(frame: np.array, startPos: tuple, endPos: tuple, nSeconds: int, color: tuple,
+                         thickness: int) -> None:
+    TOTAL_STEPS = nSeconds * FPS
+    for i in range(1, TOTAL_STEPS + 1):
+        x = int(startPos[0] + i / TOTAL_STEPS * (endPos[0] - startPos[0]))
+        y = int(startPos[1] + i / TOTAL_STEPS * (endPos[1] - startPos[1]))
+        cv2.line(frame, startPos, (x, y), color, thickness)
         cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(40)
-    startPos = TOP_RIGHT
-    for j in range(1, math.floor(yDuration * 25 + 1)):
-        endPos = (startPos[0], int(startPos[1] + ySpan * j / (yDuration * 25)))
-        cv2.line(frame, startPos, endPos, color, thickness)
-        cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(40)
-    startPos = BOTTOM_RIGHT
-    for i in range(1, math.floor(xDuration * 25 + 1)):
-        endPos = (int(startPos[0] - xSpan * i / (xDuration * 25)), startPos[1])
-        cv2.line(frame, startPos, endPos, color, thickness)
-        cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(40)
-    startPos = BOTTOM_LEFT
-    for j in range(1, math.floor(yDuration * 25 + 1)):
-        endPos = (startPos[0], int(startPos[1] - ySpan * j / (yDuration * 25)))
-        cv2.line(frame, startPos, endPos, color, thickness)
-        cv2.imshow(WINDOW_NAME, frame)
-        cv2.waitKey(40)
+        cv2.waitKey(FRAME_DURATION)
 
 
 BLACK = np.zeros(FRAME_SIZE, np.uint8)
-drawRectangle_progressive(BLACK, (320, 240), 120, 60, (255, 255, 255), 1)
+drawLine_progressive(BLACK, (0, 240), (320, 240), 3, (255, 255, 255), 1)
 cv2.waitKey(0)
