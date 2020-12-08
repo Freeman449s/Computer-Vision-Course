@@ -114,8 +114,9 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# 图像
+# 图像和视频
 作业1：无声短片/images
+作业1：无声短片/Record.mp4
 
 # Pycharm项目文件
 */.idea
