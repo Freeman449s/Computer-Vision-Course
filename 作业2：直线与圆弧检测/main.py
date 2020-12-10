@@ -31,7 +31,7 @@ def lineDetection(img: np.ndarray, edges: np.ndarray) -> None:
                 rad = Util.rad(theta)
                 rho = round(x * math.cos(rad) + y * math.sin(rad))
                 accumMat[accumMat.shape[0] // 2 - rho][theta] += 1
-    accumMatForShow = generateAccumMatForShow_line(accumMat)
+    accumMatForShow = generateAccumMatForShow(accumMat)
     cv2.imwrite("Accum Mat for Line.jpg", accumMatForShow)
     pairList = pickPairs_line(accumMat, (img.shape[0], img.shape[1]), SuppressionMode.EIGHT_CONN)
     startPointList = []
@@ -89,10 +89,6 @@ def centerDetection(img: np.ndarray, gray: np.ndarray, edges: np.ndarray) -> Non
                 accumMat[b][a] += 1
     # 筛选圆心
     pairList = pickPairs_center(accumMat, (img.shape[0], img.shape[1]), SuppressionMode.EIGHT_CONN)
-    # 生成用于展示的参数空间图像
-    accumMatForShow = generateAccumMatForShow_circle(accumMat, pairList)
-    cv2.imshow(WINDOW_NAME, accumMatForShow)
-    cv2.waitKey(0)
     # 标出圆心
     for i in range(0, len(pairList)):
         cv2.circle(img, pairList[i], 1, CENTER_COLOR, thickness=-1)  # thickness为负值时，填充圆形
@@ -116,37 +112,34 @@ def pickPairs_line(accumMat: np.ndarray, imgShape: tuple, mode: SuppressionMode)
 def pickPairs_center(accumMat: np.ndarray, imgShape: tuple, mode: SuppressionMode) -> list:
     # 过小点和非极大值点抑制
     tmpMat = np.array(accumMat)
-    pairList = []
-    T = min(imgShape[0], imgShape[1]) / 64 * math.pi
+    N_VOTE_T = min(imgShape[0], imgShape[1]) / 32 * math.pi
     for a in range(0, tmpMat.shape[1]):
         for b in range(0, tmpMat.shape[0]):
-            if not tmpMat[b][a] > T:
+            if not tmpMat[b][a] > N_VOTE_T:
                 tmpMat[b][a] = 0
             else:
                 if not isLocalMaxima(tmpMat, b, a, mode):
                     tmpMat[b][a] = 0
-    # 选出累加矩阵中若干个值最大的点
-    maxima = []
+    # 点按照票数的大小排序
+    list = []
     for a in range(0, tmpMat.shape[1]):
         for b in range(0, tmpMat.shape[0]):
             if tmpMat[b][a] == 0:
                 continue
-            maxima.append((tmpMat[b][a], (a, b)))  # maxima的元素为元组，每个元组内包含点的值以及点的坐标
-    maxima.sort(reverse=True)
-    nMaxima = min(20, len(maxima))
-    for i in range(0, nMaxima):
-        pairList.append(maxima[i][1])
+            list.append((tmpMat[b][a], (a, b)))  # 列表的元素为元组，每个元组内包含点的值以及点的坐标
+    list.sort(reverse=True)
+    # 选取局部最大点。具体算法是先选中票数最多的点，在其之后距离小于阈值的点全部舍弃
+    DISTANCE_T = min(imgShape[0], imgShape[1]) / 32
+    pairList = []
+    lastPicked = list[0][1]
+    for i in range(1, len(list)):
+        p = list[i][1]
+        if Util.distance(lastPicked, p) < DISTANCE_T:
+            continue
+        else:
+            pairList.append(p)
+            lastPicked = p
     return pairList
-
-
-def generateAccumMatForShow_circle(accumMat: np.array, pairList: list) -> np.ndarray:
-    m = np.zeros(accumMat.shape, int)
-    for b in range(accumMat.shape[0]):
-        for a in range(0, accumMat.shape[1]):
-            if (a, b) not in pairList:
-                continue
-            m[b][a] = accumMat[b][a]
-    return generateAccumMatForShow_line(m)
 
 
 def isLocalMaxima(accumMat: np.ndarray, i: int, j: int, mode: SuppressionMode) -> bool:
@@ -178,14 +171,10 @@ def isLocalMaxima(accumMat: np.ndarray, i: int, j: int, mode: SuppressionMode) -
             if this < accumMat[i][j - 1]: flag = False
         if j < accumMat.shape[1] - 1:
             if this < accumMat[i][j + 1]: flag = False
-    elif mode == SuppressionMode.DOUBLE_EIGHT:
-        if i < 8 or i > accumMat.shape[0] - 9 or j < 8 or j > accumMat.shape[1] - 9:
-            return False
-        # todo
     return flag
 
 
-def generateAccumMatForShow_line(accumMat: np.ndarray) -> np.ndarray:
+def generateAccumMatForShow(accumMat: np.ndarray) -> np.ndarray:
     MAX = np.max(accumMat)
     accumMatForShow = np.zeros(accumMat.shape, np.uint8)
     for i in range(0, accumMat.shape[0]):

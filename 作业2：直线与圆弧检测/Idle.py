@@ -4,6 +4,7 @@
 import numpy as np
 from main import SuppressionMode
 from main import isLocalMaxima
+from main import generateAccumMatForShow
 
 
 def centerEnhance(m: np.ndarray, mode: SuppressionMode) -> np.ndarray:
@@ -16,3 +17,13 @@ def centerEnhance(m: np.ndarray, mode: SuppressionMode) -> np.ndarray:
             else:
                 ret[i][j] *= 2
     return ret
+
+
+def generateAccumMatForShow_circle(accumMat: np.array, pairList: list) -> np.ndarray:
+    m = np.zeros(accumMat.shape, int)
+    for b in range(accumMat.shape[0]):
+        for a in range(0, accumMat.shape[1]):
+            if (a, b) not in pairList:
+                continue
+            m[b][a] = accumMat[b][a]
+    return generateAccumMatForShow(m)
