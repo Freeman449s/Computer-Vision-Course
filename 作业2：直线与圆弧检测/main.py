@@ -77,66 +77,7 @@ def lineDetection(img: np.ndarray, edges: np.ndarray) -> None:
 
 
 def circleDetection(img: np.ndarray, gray: np.ndarray, edges: np.ndarray) -> None:
-    # 令每个边缘点给最近的圆心投票
-    grossCenters = centerDetection(img, gray, edges)
-    # todo: 筛选算法优化
-    centers = []
-    for i in range(0, len(grossCenters)):
-        centers.append(Center(grossCenters[i]))
-    for y in range(0, edges.shape[0]):
-        for x in range(0, edges.shape[1]):
-            if edges[y][x] == 0:
-                continue
-            p = (x, y)
-            nearestCenter = findNearestCenter(p, grossCenters)
-            for i in range(0, len(centers)):
-                if centers[i].equals(Center(nearestCenter)):
-                    centers[i].distances.append(Util.distance(p, nearestCenter))
-    # 筛选出票数大于阈值的中心
-    N_VOTE_T = min(img.shape[0], img.shape[1]) / 32 * math.pi
-    i = 0
-    while i < len(centers):
-        if len(centers[i].distances) < N_VOTE_T:
-            centers.remove(centers[i])
-            i -= 1
-        i += 1
-    # 在原图的副本上标出筛选过的圆心
-    img_copy = np.array(img)
-    for i in range(0, len(centers)):
-        cv2.circle(img_copy, centers[i].pos, 2, CENTER_COLOR, thickness=-1)
-    cv2.imwrite("Img with Screened Centers.jpg", img_copy)
-    # 分析半径，标点
-    RADIUS_T = min(img.shape[0], img.shape[1]) / 128
-    for i in range(0, len(centers)):
-        center = centers[i]
-        analyzeRadii(center, RADIUS_T)
-        for j in range(0, len(center.radii)):
-            cv2.circle(img, center.pos, round(center.radii[j]), CIRCLE_COLOR)
-    cv2.imwrite("Img with Circles.jpg", img)
-    cv2.imshow(WINDOW_NAME, img)
-    cv2.waitKey(0)
-
-
-def analyzeRadii(c: Center, T: float) -> None:
-    """
-    分析围绕给定圆心的圆的半径\n
-    :param c:
-    :return:
-    """
-    c.distances.sort()
-    dists = [c.distances[0]]
-    for i in range(1, len(c.distances)):
-        # 与上一个选中的距离差距不大，纳入此半径的计算
-        if abs(c.distances[i] - dists[-1]) < T:
-            dists.append(c.distances[i])
-        else:
-            c.radii.append(np.mean(dists))
-            dists = [c.distances[i]]
-
-
-def centerDetection(img: np.ndarray, gray: np.ndarray, edges: np.ndarray) -> list:
-    accumMat = np.zeros(gray.shape, int)  # 圆心与边缘的距离大于图像本身尺度时舍弃
-    # 计算x、y方向的微分
+    # 计算梯度方向
     sobelX = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
     sobelY = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
     cv2.imwrite("Sobel X.jpg", sobelX)
@@ -148,6 +89,62 @@ def centerDetection(img: np.ndarray, gray: np.ndarray, edges: np.ndarray) -> lis
                 continue
             else:
                 tanMat[i][j] = sobelY[i][j] / sobelX[i][j]
+    # 得到粗选后的圆心
+    grossCenters = grossCenterDetection(img, gray, edges, tanMat)
+    centers = []
+    for i in range(0, len(grossCenters)):
+        centers.append(Center(grossCenters[i]))
+    # 筛选出圆弧上的点
+    ARC_T = min(img.shape[0], img.shape[1]) / 64
+    arcEdges = np.array(edges)
+    for y in range(0, arcEdges.shape[0]):
+        for x in range(0, arcEdges.shape[1]):
+            if arcEdges[y][x] == 0:
+                continue
+            p = (x, y)
+            nearestCenter = findNearestCenter(p, grossCenters)
+            if not isOnArc(p, nearestCenter, tanMat, ARC_T):
+                arcEdges[y][x] = 0
+    cv2.imwrite("Arc Edges.jpg", arcEdges)
+    cv2.imshow(WINDOW_NAME, arcEdges)
+    cv2.waitKey(0)
+    # 令每个圆弧上的边缘点给最近的圆心投票
+    for y in range(0, arcEdges.shape[0]):
+        for x in range(0, arcEdges.shape[1]):
+            if arcEdges[y][x] == 0:
+                continue
+            p = (x, y)
+            nearestCenter = findNearestCenter(p, grossCenters)
+            for i in range(0, len(centers)):
+                if centers[i].equals(Center(nearestCenter)):
+                    centers[i].distances.append(Util.distance(p, nearestCenter))
+    # 筛选出票数大于阈值的中心
+    N_VOTE_T = min(img.shape[0], img.shape[1]) / 16 * math.pi
+    i = 0
+    while i < len(centers):
+        if len(centers[i].distances) < N_VOTE_T:
+            centers.remove(centers[i])
+            i -= 1
+        i += 1
+    # 在原图的副本上标出筛选过的圆心
+    img_copy = np.array(img)
+    for i in range(0, len(centers)):
+        cv2.circle(img_copy, centers[i].pos, 2, CENTER_COLOR, thickness=-1)
+    cv2.imwrite("Img with Screened Centers.jpg", img_copy)
+    # 分析半径，绘制圆形
+    RADIUS_DIST_T = min(img.shape[0], img.shape[1]) / 32
+    for i in range(0, len(centers)):
+        center = centers[i]
+        analyzeRadii(center, RADIUS_DIST_T, N_VOTE_T)
+        for j in range(0, len(center.radii)):
+            cv2.circle(img, center.pos, round(center.radii[j]), CIRCLE_COLOR)
+    cv2.imwrite("Img with Circles.jpg", img)
+    cv2.imshow(WINDOW_NAME, img)
+    cv2.waitKey(0)
+
+
+def grossCenterDetection(img: np.ndarray, gray: np.ndarray, edges: np.ndarray, tanMat: np.ndarray) -> list:
+    accumMat = np.zeros(gray.shape, int)  # 圆心与边缘的距离大于图像本身尺度时舍弃
     # 计算累加器矩阵
     for y in range(0, edges.shape[0]):
         for x in range(0, edges.shape[1]):
@@ -171,6 +168,46 @@ def centerDetection(img: np.ndarray, gray: np.ndarray, edges: np.ndarray) -> lis
         cv2.circle(img_copy, pairList[i], 2, CENTER_COLOR, thickness=-1)  # thickness为负值时，填充圆形
     cv2.imwrite("Img with Gross Centers.jpg", img_copy)
     return pairList
+
+
+def isOnArc(p: tuple, center: tuple, tanMat: np.ndarray, T: float) -> bool:
+    """
+    验证给定点p是否是以center为中心的圆上的点\n
+    :param p:
+    :param center:
+    :param tanMat:
+    :param T:
+    :return:
+    """
+    px = p[0]
+    py = p[1]
+    cx = center[0]
+    cy = center[1]
+    tan = tanMat[py][px]
+    C = py - tan * px
+    dist = abs(tan * cx - cy + C) / math.sqrt(1 + tan * tan)
+    return dist < T
+
+
+def analyzeRadii(c: Center, DIST_T: float, VOTE_T: float) -> None:
+    """
+    分析围绕给定圆心的圆的半径\n
+    :param c:
+    :return:
+    """
+    c.distances.sort()
+    dists = [c.distances[0]]
+    for i in range(1, len(c.distances)):
+        # 与第一个选中的距离差距不大，纳入此半径的计算
+        if abs(c.distances[i] - dists[0]) < DIST_T:
+            dists.append(c.distances[i])
+        else:
+            # 确保此半径确实是圆弧上的点产生的，只有票数大于阈值时才入选
+            if len(dists) > VOTE_T:
+                c.radii.append(np.mean(dists))
+            dists = [c.distances[i]]
+    if len(dists) > VOTE_T:
+        c.radii.append(np.mean(dists))
 
 
 def findNearestCenter(p: tuple, centers: list) -> tuple:
@@ -221,7 +258,7 @@ def pickPairs_center(accumMat: np.ndarray, imgShape: tuple, mode: SuppressionMod
         return pairList
     list.sort(reverse=True)
     # 选取局部最大点。具体算法是先选中票数最多的点，在其之后距离小于阈值的点全部舍弃
-    DISTANCE_T = min(imgShape[0], imgShape[1]) / 16
+    DISTANCE_T = min(imgShape[0], imgShape[1]) / 8
     pairList.append(list[0][1])
     for i in range(1, len(list)):
         p = list[i][1]
