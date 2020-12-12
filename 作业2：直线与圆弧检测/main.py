@@ -6,13 +6,15 @@ import Util
 from enum import Enum
 from Exception import IllegalArgumentException
 
-IMG_PATH = "Highway Test.JPG"
+IMG_PATH = "Seal Test.JPG"
 WINDOW_NAME = "HW2"
 CANNY_T = (320, 360)
 LINE_COLOR = (255, 0, 0)
 CENTER_COLOR = (0, 255, 0)
 CIRCLE_COLOR = (0, 255, 0)
 INF = 1E38
+LINE_DETECT_PARAM = 2.2  # 直线检测控制参数，值越大，检测越严格（只有较长的线才能被检测到）
+CENTER_DETECT_PARAM = 48  # 圆心检测控制参数，值越大，检测越严格（只有较大的圆才能被检测到）
 
 
 class Center():
@@ -220,7 +222,7 @@ def findNearestCenter(p: tuple, centers: list) -> tuple:
 
 def pickPairs_line(accumMat: np.ndarray, imgShape: tuple, mode: SuppressionMode) -> list:
     pairList = []
-    T = min(imgShape[0], imgShape[1]) / 2.2  # 累加器的值大于该阈值时才入选
+    T = min(imgShape[0], imgShape[1]) / LINE_DETECT_PARAM  # 累加器的值大于该阈值时才入选
     for rho in range(0, accumMat.shape[0]):
         for theta in range(0, accumMat.shape[1]):
             if accumMat[rho][theta] > T:
@@ -233,7 +235,7 @@ def pickPairs_line(accumMat: np.ndarray, imgShape: tuple, mode: SuppressionMode)
 def pickPairs_center(accumMat: np.ndarray, imgShape: tuple, mode: SuppressionMode) -> list:
     # 过小点和非极大值点抑制
     tmpMat = np.array(accumMat)
-    N_VOTE_T = min(imgShape[0], imgShape[1]) / 48 * math.pi
+    N_VOTE_T = min(imgShape[0], imgShape[1]) / CENTER_DETECT_PARAM * math.pi
     for a in range(0, tmpMat.shape[1]):
         for b in range(0, tmpMat.shape[0]):
             if not tmpMat[b][a] > N_VOTE_T:
@@ -319,7 +321,26 @@ def generateAccumMatForShow(accumMat: np.ndarray) -> np.ndarray:
 
 
 def main() -> None:
+    IMG_PATH = input("Input path of the image\n> ")
     img = cv2.imread(IMG_PATH)
+    if not isinstance(img, np.ndarray):
+        print("Image does not exist, please check your input and try again.")
+        return
+    LINE_DETECT_PARAM = None
+    CENTER_DETECT_PARAM = None
+    while not isinstance(LINE_DETECT_PARAM, float):
+        try:
+            LINE_DETECT_PARAM = float(
+                input("Input the line detection parameter (no smaller than 1, the smaller, the stricter)\n> "))
+        except Exception:
+            print("Warning: Parameter should be an integer or a floating point number.")
+    while not isinstance(CENTER_DETECT_PARAM, float):
+        try:
+            CENTER_DETECT_PARAM = float(
+                input("Input the circle center detection parameter (no smaller than 1, the smaller, the stricter)\n> "))
+        except Exception:
+            print("Warning: Parameter should be an integer or a floating point number.")
+    print("Please stand by...")
     edges = cv2.Canny(img, CANNY_T[0], CANNY_T[1])  # edges为二维数组，元素全为0或255
     # edges = cv2.GaussianBlur(edges, (3, 3), 1)
     cv2.imwrite("Edges.jpg", edges)
