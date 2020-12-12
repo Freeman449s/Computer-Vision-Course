@@ -6,7 +6,7 @@ import Util
 from enum import Enum
 from Exception import IllegalArgumentException
 
-IMG_PATH = "Coin Test.JPG"
+IMG_PATH = "Highway Test.JPG"
 WINDOW_NAME = "HW2"
 CANNY_T = (320, 360)
 LINE_COLOR = (255, 0, 0)
@@ -80,8 +80,6 @@ def circleDetection(img: np.ndarray, gray: np.ndarray, edges: np.ndarray) -> Non
     # 计算梯度方向
     sobelX = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=7)
     sobelY = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=7)
-    cv2.imwrite("Sobel X.jpg", sobelX)
-    cv2.imwrite("Sobel Y.jpg", sobelY)
     tanMat = np.zeros(gray.shape, float)
     for i in range(0, tanMat.shape[0]):
         for j in range(0, tanMat.shape[1]):
@@ -106,8 +104,6 @@ def circleDetection(img: np.ndarray, gray: np.ndarray, edges: np.ndarray) -> Non
             if not isOnArc(p, nearestCenter, tanMat, ARC_T):
                 arcEdges[y][x] = 0
     cv2.imwrite("Arc Edges.jpg", arcEdges)
-    cv2.imshow(WINDOW_NAME, arcEdges)
-    cv2.waitKey(0)
     # 令每个圆弧上的边缘点给最近的圆心投票
     for y in range(0, arcEdges.shape[0]):
         for x in range(0, arcEdges.shape[1]):
@@ -126,11 +122,10 @@ def circleDetection(img: np.ndarray, gray: np.ndarray, edges: np.ndarray) -> Non
             centers.remove(centers[i])
             i -= 1
         i += 1
-    # 在原图的副本上标出筛选过的圆心
-    img_copy = np.array(img)
+    # 标出筛选过的圆心
     for i in range(0, len(centers)):
-        cv2.circle(img_copy, centers[i].pos, 2, CENTER_COLOR, thickness=-1)
-    cv2.imwrite("Img with Screened Centers.jpg", img_copy)
+        cv2.circle(img, centers[i].pos, 2, CENTER_COLOR, thickness=-1)
+    cv2.imwrite("Img with Screened Centers.jpg", img)
     # 分析半径，绘制圆形
     RADIUS_DIST_T = min(img.shape[0], img.shape[1]) / 32
     for i in range(0, len(centers)):
@@ -225,7 +220,7 @@ def findNearestCenter(p: tuple, centers: list) -> tuple:
 
 def pickPairs_line(accumMat: np.ndarray, imgShape: tuple, mode: SuppressionMode) -> list:
     pairList = []
-    T = min(imgShape[0], imgShape[1]) / 5  # 累加器的值大于该阈值时才入选
+    T = min(imgShape[0], imgShape[1]) / 2.2  # 累加器的值大于该阈值时才入选
     for rho in range(0, accumMat.shape[0]):
         for theta in range(0, accumMat.shape[1]):
             if accumMat[rho][theta] > T:
@@ -329,8 +324,7 @@ def main() -> None:
     # edges = cv2.GaussianBlur(edges, (3, 3), 1)
     cv2.imwrite("Edges.jpg", edges)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    cv2.imwrite("Gray.jpg", gray)
-    # lineDetection(img, edges)
+    lineDetection(img, edges)
     circleDetection(img, gray, edges)
 
 

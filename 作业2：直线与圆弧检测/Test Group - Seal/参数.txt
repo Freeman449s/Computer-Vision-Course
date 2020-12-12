@@ -1,0 +1,5 @@
+pickPairs_center
+	N_VOTE_T = min(imgShape[0], imgShape[1]) / 32 * math.pi
+
+pickPairs_line
+	T = min(imgShape[0], imgShape[1]) / 4.5
