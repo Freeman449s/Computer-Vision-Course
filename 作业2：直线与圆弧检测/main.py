@@ -325,6 +325,7 @@ def main() -> None:
     img = cv2.imread(IMG_PATH)
     if not isinstance(img, np.ndarray):
         print("Image does not exist, please check your input and try again.")
+        key = input()
         return
     LINE_DETECT_PARAM = None
     CENTER_DETECT_PARAM = None
@@ -347,6 +348,8 @@ def main() -> None:
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     lineDetection(img, edges)
     circleDetection(img, gray, edges)
+    print("OK")
+    key = input()
 
 
 main()
