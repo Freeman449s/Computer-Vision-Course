@@ -176,8 +176,21 @@ def findLocalMaxima(Rs: np.ndarray) -> list:
 
 def main() -> None:
     global SUPPRESS_WINDOW_SIZE
-    cap = cv2.VideoCapture(0)
+    camID = input("Through which camera do you wish to capture frames?\n> ")
+    try:
+        camID = int(camID)
+    except ValueError:
+        print(camID + " is not a valid camera ID, please check your input and try again.")
+        input()
+        return
+    cap = cv2.VideoCapture(camID)
     successful, frame = cap.read()
+    if not successful:
+        print("Failed to capture frames through the camera.")
+        input()
+        cap.release()
+        cv2.destroyAllWindows()
+        return
     while successful:
         cv2.imshow(CAMERA_WINDOW_NAME, frame)
         key = cv2.waitKey(40)
