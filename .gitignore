@@ -120,3 +120,6 @@ dmypy.json
 
 # Pycharm项目文件
 */.idea
+
+# 测试图
+作业3：Harris角点检测/Test Images/*

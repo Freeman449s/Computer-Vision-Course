@@ -3,8 +3,8 @@ import cv2
 import math
 
 WINDOW_SIZE = 2 * 3 + 1  # 窗口尺寸，必须为非负奇数
-SUPPRESS_WINDOW_SIZE = 2 * 3 + 1
-R_T = 1E8
+SUPPRESS_WINDOW_SIZE = 2 * 5 + 1
+R_T = 1E6
 BLUE = (255, 0, 0)
 GREEN = (0, 255, 0)
 RED = (0, 0, 255)
@@ -128,8 +128,8 @@ def Harris(img: np.ndarray) -> np.ndarray:
         for x in range(0, lambdas.shape[1]):
             lambdaMinima[y][x] = math.floor(lambdaMinima[y][x] / maxOfLambdaMin * 255)
             lambdaMaxima[y][x] = math.floor(lambdaMaxima[y][x] / maxOfLambdaMax * 255)
-    cv2.imwrite("Lambda Maxima.jpg", lambdaMaxima)
-    cv2.imwrite("Lambda Minima.jpg", lambdaMinima)
+    cv2.imwrite("Test Images\\Lambda Maxima.jpg", lambdaMaxima)
+    cv2.imwrite("Test Images\\Lambda Minima.jpg", lambdaMinima)
     # 计算R，输出R图，并在原图中标出角点
     Rs = computeRs(Ms)
     localMaximaPointList = findLocalMaxima(Rs)
@@ -149,8 +149,8 @@ def Harris(img: np.ndarray) -> np.ndarray:
             else:
                 for channel in range(0, 3):
                     RImg[y][x][channel] = GREEN[channel]
-    cv2.imwrite("R Image.jpg", RImg)
-    cv2.imwrite("Harris Corners.jpg", harris)
+    cv2.imwrite("Test Images\\R Image.jpg", RImg)
+    cv2.imwrite("Test Images\\Harris Corners.jpg", harris)
     return harris
 
 
@@ -175,12 +175,15 @@ def findLocalMaxima(Rs: np.ndarray) -> list:
 
 
 def main() -> None:
+    global SUPPRESS_WINDOW_SIZE
     cap = cv2.VideoCapture(0)
     successful, frame = cap.read()
     while successful:
         cv2.imshow(CAMERA_WINDOW_NAME, frame)
         key = cv2.waitKey(40)
         if key == 32:
+            print("Frame captured.")
+            SUPPRESS_WINDOW_SIZE = math.ceil(min(frame.shape[0], frame.shape[1]) / 100)
             cap.release()
             cv2.destroyWindow(CAMERA_WINDOW_NAME)
             break
@@ -188,6 +191,7 @@ def main() -> None:
     print("Detecting Harris feature, stand by...")
     harris = Harris(frame)
     print("OK")
+    cv2.imshow("Frame", frame)
     cv2.imshow("Harris", harris)
     cv2.waitKey(0)
 
