@@ -10,6 +10,7 @@ GREEN = (0, 255, 0)
 RED = (0, 0, 255)
 GRAY = (128, 128, 128)
 USING_SOBEL = True
+CAMERA_WINDOW_NAME = "Camera"
 
 
 def computeDiffMatrices(gray: np.ndarray) -> np.ndarray:
@@ -103,11 +104,11 @@ def computeRs(Ms: np.ndarray) -> np.ndarray:
     return Rs
 
 
-def Harris(img: np.ndarray) -> None:
+def Harris(img: np.ndarray) -> np.ndarray:
     """
     对图像进行Harris角点检测，输出λmax图、λmin图、R图和最终标出角点的图\n
     :param img: 待检测图像
-    :return: 无返回值
+    :return: 标出Harris角点的图像
     """
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     diffMatrices = computeDiffMatrices(gray)
@@ -133,6 +134,7 @@ def Harris(img: np.ndarray) -> None:
     Rs = computeRs(Ms)
     localMaximaPointList = findLocalMaxima(Rs)
     RImg = np.zeros(img.shape, np.uint8)
+    harris = np.array(img)
     for y in range(0, Rs.shape[0]):
         for x in range(0, Rs.shape[1]):
             R = Rs[y][x]
@@ -141,16 +143,15 @@ def Harris(img: np.ndarray) -> None:
                     RImg[y][x][channel] = GRAY[channel]
             elif R > 0:
                 if (x, y) in localMaximaPointList:
-                    cv2.circle(img, (x, y), 1, GREEN, thickness=-1)
+                    cv2.circle(harris, (x, y), 1, GREEN, thickness=-1)
                 for channel in range(0, 3):
                     RImg[y][x][channel] = RED[channel]
             else:
                 for channel in range(0, 3):
                     RImg[y][x][channel] = GREEN[channel]
     cv2.imwrite("R Image.jpg", RImg)
-    cv2.imwrite("Harris Corners.jpg", img)
-    cv2.imshow("Harris Corners", img)
-    cv2.waitKey(0)
+    cv2.imwrite("Harris Corners.jpg", harris)
+    return harris
 
 
 def findLocalMaxima(Rs: np.ndarray) -> list:
@@ -174,8 +175,21 @@ def findLocalMaxima(Rs: np.ndarray) -> list:
 
 
 def main() -> None:
-    img = cv2.imread("Test.jpg")
-    Harris(img)
+    cap = cv2.VideoCapture(0)
+    successful, frame = cap.read()
+    while successful:
+        cv2.imshow(CAMERA_WINDOW_NAME, frame)
+        key = cv2.waitKey(40)
+        if key == 32:
+            cap.release()
+            cv2.destroyWindow(CAMERA_WINDOW_NAME)
+            break
+        successful, frame = cap.read()
+    print("Detecting Harris feature, stand by...")
+    harris = Harris(frame)
+    print("OK")
+    cv2.imshow("Harris", harris)
+    cv2.waitKey(0)
 
 
 main()
