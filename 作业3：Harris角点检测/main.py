@@ -4,7 +4,7 @@ import math
 
 WINDOW_SIZE = 2 * 3 + 1  # 窗口尺寸，必须为非负奇数
 SUPPRESS_WINDOW_SIZE = 2 * 5 + 1
-R_T = 1E6
+R_T = 2E6
 BLUE = (255, 0, 0)
 GREEN = (0, 255, 0)
 RED = (0, 0, 255)
@@ -183,6 +183,7 @@ def main() -> None:
         key = cv2.waitKey(40)
         if key == 32:
             print("Frame captured.")
+            cv2.imwrite("Test Images\\Frame.jpg", frame)
             SUPPRESS_WINDOW_SIZE = math.ceil(min(frame.shape[0], frame.shape[1]) / 100)
             cap.release()
             cv2.destroyWindow(CAMERA_WINDOW_NAME)
