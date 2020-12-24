@@ -3,16 +3,18 @@ import os
 import cv2
 from Errors import IllegalArgumentError
 
-MODEL_FILE_PATH = "model.txt"
+MODEL_FILE_PATH = "model.npy"
+AVG_FILE_PATH = "avg.npy"
 FACE_LIB_PATH = "ORL Library"
 INF = 1E38
 
 
-def train(faces: list, energyRatio: float) -> tuple:
+def train(faces: list, energyRatio: float, modelFilePath: str) -> tuple:
     """
     训练模型\n
     :param faces: 人脸数据
     :param energyRatio: 能量比，用于确定所需基向量的个数
+    :param modelFilePath: 用于储存模型的文件的路径
     :return: 平均脸和基向量组成的矩阵
     """
     # Step1: 二维矩阵转向量
@@ -46,26 +48,49 @@ def train(faces: list, energyRatio: float) -> tuple:
     C /= N_FACES
     # Step4: 求出并筛选特征向量
     eigVals, eigVecs = np.linalg.eig(C)
+    eigVals = np.real(eigVals)  # 实数化
+    eigVecs = np.real(eigVecs)
     sortEigVecs(eigVals, eigVecs, N_PIXEL)
     # 计算所需基的个数
     k = 0
     eigValSum = 0
     while eigValSum < np.sum(eigVals) * energyRatio:
-        eigValSum += eigVals[k]
+        eigValSum += eigVals[-1 - k]
         k += 1
     baseVecs = np.zeros((N_PIXEL, k), float)
     for i in range(0, k):
         baseVecs[:, i] = eigVecs[:, -1 - i]
     # Step5: 写入模型
-    with open(MODEL_FILE_PATH, "w")  as file:
-        # 一个向量作为一行写入
-        for col in range(0, k):
-            for row in range(0, N_PIXEL):
-                file.write(str(baseVecs[row][col]))
-                if row < N_PIXEL - 1:
-                    file.write(" ")
-            file.write("\n")
-    # 拼凑前10张特征脸并显示
+    # with open(modelFilePath, "w") as file:
+    #     # 先写入向量维数与向量个数
+    #     file.write(str(N_PIXEL) + " " + str(k) + "\n")
+    #     # 写入平均脸
+    #     for row in range(0, N_PIXEL):
+    #         file.write(avg[row][0])
+    #         if row < N_PIXEL - 1:
+    #             file.write(" ")
+    #     file.write("\n")
+    #     # 一个向量作为一行写入
+    #     for col in range(0, k):
+    #         for row in range(0, N_PIXEL):
+    #             file.write(str(baseVecs[row][col]))
+    #             if row < N_PIXEL - 1:
+    #                 file.write(" ")
+    #         file.write("\n")
+    np.save(MODEL_FILE_PATH, baseVecs)
+    np.save(AVG_FILE_PATH, avg)
+    return (avg, baseVecs)
+
+
+def stitchTopTen(baseVecs: np.ndarray, WIDTH: int, HEIGHT: int) -> None:
+    """
+    拼凑前十张特征脸并显示\n
+    :param baseVecs: 基向量矩阵
+    :param WIDTH: 人脸图的宽度
+    :param HEIGHT: 人脸图的高度
+    :return: 无返回值
+    """
+    N_PIXEL = baseVecs.shape[0]
     topTen = np.zeros((N_PIXEL, 1))
     for i in range(0, 10):
         topTen = np.add(topTen, baseVecs[:, i])
@@ -74,7 +99,6 @@ def train(faces: list, energyRatio: float) -> tuple:
     cv2.imwrite("Top Ten Stitched.jpg", topTenUByte)
     cv2.imshow("Top Ten", topTenUByte)
     cv2.waitKey(0)
-    return (avg, baseVecs)
 
 
 def reconstruct(face: np.ndarray, avg: np.ndarray, baseVecs: np.ndarray, WIDTH: int, HEIGHT: int) -> np.ndarray:
@@ -139,6 +163,12 @@ def computeCoord(faceMat: np.ndarray, avg: np.ndarray, baseVecs: np.ndarray) -> 
 
 
 def vecCos(vecA: np.ndarray, vecB: np.ndarray) -> float:
+    """
+    计算同维向量的夹角余弦\n
+    :param vecA: 向量A
+    :param vecB: 向量B
+    :return: 两向量的夹角余弦
+    """
     if vecA.shape[0] != vecB.shape[0] or vecA.shape[1] != vecB.shape[1]:
         raise IllegalArgumentError("vecA and vecB's shapes are not the same.")
     return (vecA * vecB) / np.linalg.norm(vecA) / np.linalg.norm(vecB)
@@ -178,17 +208,17 @@ def sortEigVecs(eigVals: np.ndarray, eigVecs: np.ndarray, LENGTH: int) -> None:
     keyVec = np.zeros((LENGTH, 1), float)
     for i in range(1, len(eigVals)):
         keyVal = eigVals[i]
-        keyVec[:, :] = eigVecs[:, i]
+        keyVec[:, 0] = eigVecs[:, i]
         j = i - 1
         while j >= 0:
             if eigVals[j] > keyVal:
                 eigVals[j + 1] = eigVals[j]
-                eigVecs[:, j + 1] = eigVals[:, j]
+                eigVecs[:, j + 1] = eigVecs[:, j]
             else:
                 break
             j -= 1
         eigVals[j + 1] = keyVal
-        eigVecs[:, j + 1] = keyVec
+        eigVecs[:, j + 1] = keyVec[:, 0]
 
 
 def readFaces() -> list:
@@ -209,9 +239,40 @@ def readFaces() -> list:
     return faces
 
 
+def importModel(modelFilePath: str) -> tuple:
+    """
+    从文件中读取模型\n
+    :param modelFilePath: 模型文件路径
+    :return: 平均脸和基向量矩阵
+    """
+    # with open(modelFilePath, "r") as file:
+    #     # 先读取向量维数和个数
+    #     infoLine = file.readline()
+    #     elements = infoLine.split(" ")
+    #     N_PIXEL = float(elements[0])
+    #     k = int(elements[1])
+    #     # 读取平均脸
+    #     avgLine = file.readline()
+    #     elements = avgLine.split(" ")
+    #     avg = np.zeros((N_PIXEL, 1), float)
+    #     for row in range(0, len(elements)):
+    #         avg[row][0] = float(elements[row])
+    #     # 读取特征向量
+    #     baseVecs = np.zeros((N_PIXEL, k), float)
+    #     col = 0
+    #     for line in file:
+    #         elements = line.split(" ")
+    #         for row in range(0, len(elements)):
+    #             baseVecs[row][col] = float(elements[row])
+    #         col += 1
+    baseVecs = np.load(MODEL_FILE_PATH)
+    avg = np.load(AVG_FILE_PATH)
+    return (avg, baseVecs)
+
+
 def main() -> None:
     faces = readFaces()
-    train(faces, 0.95)
+    train(faces, 0.95, MODEL_FILE_PATH)
 
 
 main()
