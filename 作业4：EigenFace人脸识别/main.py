@@ -2,14 +2,17 @@ import numpy as np
 import os
 import cv2
 from Errors import IllegalArgumentError
+import matplotlib.pyplot as plt
+import math
 
 MODEL_FILE_PATH = "model.npy"
 AVG_FILE_PATH = "avg.npy"
 FACE_LIB_PATH = "ORL Library"
+TEST_FACE_PATH = "Test Face.pgm"
 INF = 1E38
 
 
-def train(faces: list, energyRatio: float, modelFilePath: str) -> tuple:
+def train(faces: list, energyRatio: float) -> tuple:
     """
     训练模型\n
     :param faces: 人脸数据
@@ -82,26 +85,35 @@ def train(faces: list, energyRatio: float, modelFilePath: str) -> tuple:
     return (avg, baseVecs)
 
 
-def stitchTopTen(baseVecs: np.ndarray, WIDTH: int, HEIGHT: int) -> None:
+def showTopTen(baseVecs: np.ndarray, WIDTH: int, HEIGHT: int) -> None:
     """
-    拼凑前十张特征脸并显示\n
+    显示前十张特征脸\n
     :param baseVecs: 基向量矩阵
     :param WIDTH: 人脸图的宽度
     :param HEIGHT: 人脸图的高度
     :return: 无返回值
     """
-    N_PIXEL = baseVecs.shape[0]
-    topTen = np.zeros((N_PIXEL, 1))
+    # N_PIXEL = baseVecs.shape[0]
     for i in range(0, 10):
-        topTen = np.add(topTen, baseVecs[:, i])
-    topTen.resize((HEIGHT, WIDTH))
-    topTenUByte = float2ubyte(topTen)
-    cv2.imwrite("Top Ten Stitched.jpg", topTenUByte)
-    cv2.imshow("Top Ten", topTenUByte)
-    cv2.waitKey(0)
+        face = np.array(baseVecs[:, i])
+        face = np.resize(face, (HEIGHT, WIDTH))
+        # face = normalize(face)
+        plt.subplot(2, 5, i + 1)  # 行数，列数，序号
+        plt.imshow(face, cmap="gray")  # 灰度显示
+        plt.xticks([])  # 去除刻度
+        plt.yticks([])
+        # vec = np.array(baseVecs[:, i])
+        # vec = np.resize(vec, (N_PIXEL, 1))
+        # topTen = np.add(topTen, vec)
+    plt.show()
+    # topTen = np.resize(topTen, (HEIGHT, WIDTH))
+    # topTenUByte = normalize(topTen)
+    # cv2.imwrite("Top Ten Stitched.jpg", topTenUByte)
+    # cv2.imshow("Top Ten", topTenUByte)
+    # cv2.waitKey(0)
 
 
-def reconstruct(face: np.ndarray, avg: np.ndarray, baseVecs: np.ndarray, WIDTH: int, HEIGHT: int) -> np.ndarray:
+def reconstruct(face: np.ndarray, avg: np.ndarray, baseVecs: np.ndarray, N_PCS: int) -> np.ndarray:
     """
     将传入人脸变换到特征脸空间再重构\n
     :param face: 待重构人脸
@@ -109,49 +121,55 @@ def reconstruct(face: np.ndarray, avg: np.ndarray, baseVecs: np.ndarray, WIDTH: 
     :param baseVecs: 基向量矩阵
     :param WIDTH: 重构图像的宽度
     :param HEIGHT: 重构图像的高度
+    :param N_PCS: 重构使用的主元个数
     :return: 重构的人脸（已映射到[0,255]）
     """
+    WIDTH = face.shape[1]
+    HEIGHT = face.shape[0]
     faceCoord = computeCoord(face, avg, baseVecs)
-    k = baseVecs.shape[1]
+    # k = baseVecs.shape[1]
     N_PIXEL = WIDTH * HEIGHT
-    reconFace = np.zeros((N_PIXEL, 1))
-    for i in range(0, k):
-        reconFace = np.add(reconFace, faceCoord[i] * baseVecs[:, i])
-    reconFace.resize((HEIGHT, WIDTH))
-    reconFace = float2ubyte(reconFace)
-    cv2.imwrite("Reconstructed.jpg", reconFace)
-    cv2.imshow("Reconstructed", reconFace)
+    reconFace = np.zeros((N_PIXEL, 1), float)
+    for i in range(0, N_PCS):
+        vec = baseVecs[:, i]
+        vec = np.resize(vec, (N_PIXEL, 1))
+        reconFace = np.add(np.float64(reconFace), np.float64(faceCoord[i] * vec))
+    reconFace = np.add(reconFace, avg)
+    reconFace = np.resize(reconFace, (HEIGHT, WIDTH))
+    reconFace = normalize(reconFace)
+    windowName = "Reconstructed - " + str(N_PCS) + "PCs"
+    cv2.imwrite(windowName + ".jpg", reconFace)
+    cv2.imshow(windowName, reconFace)
     cv2.waitKey(0)
     return reconFace
 
 
-def float2ubyte(gray: np.ndarray) -> np.ndarray:
+def normalize(gray: np.ndarray) -> np.ndarray:
     """
     将灰度图映射到[0,255]范围\n
     :param gray: 浮点类型的灰度图
     :return: 映射完成后的灰度图
     """
-    ubyteGray = np.array(gray.shape, np.uint8)
+    ubyteGray = np.zeros(gray.shape, np.uint8)
     max = np.max(gray)
     for y in range(0, gray.shape[0]):
         for x in range(0, gray.shape[1]):
-            ubyteGray[y][x] = round(gray[y][x] / max * 255)
+            ubyteGray[y][x] = np.uint8(gray[y][x] / max * 255)
     return ubyteGray
 
 
-def computeCoord(faceMat: np.ndarray, avg: np.ndarray, baseVecs: np.ndarray) -> np.ndarray:
+def computeCoord(faceMat: np.ndarray, avg: np.ndarray, baseVecs: np.ndarray, LENGTH: int) -> np.ndarray:
     """
     计算人脸在给定基向量下的坐标\n
     :param faceMat: 二维矩阵形式的人脸
     :param avg: 向量形式的平均脸
     :param baseVecs: 基向量矩阵
+    :param LENGTH: 返回的坐标的维数
     :return: 人脸在给定基向量下的坐标
     """
     # 矩阵转向量
-    face = np.array(faceMat[0, :])
-    for row in range(1, faceMat.shape[0]):
-        np.append(face, faceMat[row, :], 1)
-    face.resize((face.shape[1], 1))
+    N_PIXEL = avg.shape[0]
+    face = np.resize(faceMat, (N_PIXEL, 1))
     # 计算坐标
     k = baseVecs.shape[1]  # 特征向量的个数
     coord = np.zeros((k, 1))
@@ -159,6 +177,8 @@ def computeCoord(faceMat: np.ndarray, avg: np.ndarray, baseVecs: np.ndarray) -> 
     for i in range(0, k):
         baseVec = np.array(baseVecs[:, i])
         coord[i][0] = np.matmul(baseVec, diffVec)
+    coord = coord[0:LENGTH, 0]
+    coord = np.resize(coord, (LENGTH, 1))
     return coord
 
 
@@ -171,7 +191,7 @@ def vecCos(vecA: np.ndarray, vecB: np.ndarray) -> float:
     """
     if vecA.shape[0] != vecB.shape[0] or vecA.shape[1] != vecB.shape[1]:
         raise IllegalArgumentError("vecA and vecB's shapes are not the same.")
-    return (vecA * vecB) / np.linalg.norm(vecA) / np.linalg.norm(vecB)
+    return np.sum(vecA * vecB) / np.linalg.norm(vecA) / np.linalg.norm(vecB)
 
 
 def findMostSimilar(face: np.ndarray, faces: list, avg: np.ndarray, baseVecs: np.ndarray) -> np.ndarray:
@@ -195,6 +215,32 @@ def findMostSimilar(face: np.ndarray, faces: list, avg: np.ndarray, baseVecs: np
             mostSimilar = libFace
             maxSim = sim
     return mostSimilar
+
+
+def identify(face: np.ndarray, faces: list, avg: np.ndarray, baseVecs: np.ndarray) -> None:
+    mostSimilar = findMostSimilar(face, faces, avg, baseVecs)
+    # 显示输入人脸
+    plt.subplot(1, 3, 1)
+    plt.imshow(face, cmap="gray")
+    plt.xticks([])
+    plt.yticks([])
+    plt.title("Input Face")
+
+    mixed = np.add(np.int32(mostSimilar), np.int32(face))
+    mixed = normalize(mixed)
+    # 显示混合人脸
+    plt.subplot(1, 3, 2)
+    plt.imshow(mixed, cmap="gray")
+    plt.xticks([])
+    plt.yticks([])
+    plt.title("Mixed")
+    # 显示最相似人脸
+    plt.subplot(1, 3, 3)
+    plt.imshow(mostSimilar, cmap="gray")
+    plt.xticks([])
+    plt.yticks([])
+    plt.title("Most Similar")
+    plt.show()
 
 
 def sortEigVecs(eigVals: np.ndarray, eigVecs: np.ndarray, LENGTH: int) -> None:
@@ -239,7 +285,18 @@ def readFaces() -> list:
     return faces
 
 
-def importModel(modelFilePath: str) -> tuple:
+def readFace(filePath: str) -> np.ndarray:
+    """
+    依据传入的文件路径读取人脸\n
+    :param filePath: 文件路径
+    :return: 读取的人脸
+    """
+    face = cv2.imread(filePath)
+    face = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
+    return face
+
+
+def importModel() -> tuple:
     """
     从文件中读取模型\n
     :param modelFilePath: 模型文件路径
@@ -272,7 +329,11 @@ def importModel(modelFilePath: str) -> tuple:
 
 def main() -> None:
     faces = readFaces()
-    train(faces, 0.95, MODEL_FILE_PATH)
+    testFace = readFace(TEST_FACE_PATH)
+    avg, baseVecs = importModel()
+    FACE_WIDTH = faces[0].shape[1]
+    FACE_HEIGHT = faces[0].shape[0]
+    reconstruct(testFace, avg, baseVecs, 190)
 
 
 main()
