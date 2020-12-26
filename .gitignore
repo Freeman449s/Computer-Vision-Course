@@ -117,9 +117,16 @@ dmypy.json
 # 图像和视频
 作业1：无声短片/images
 作业1：无声短片/Record.mp4
+作业4：EigenFace人脸识别/My Faces
+作业4：EigenFace人脸识别/My Face Lib
 
 # Pycharm项目文件
 */.idea
 
 # 测试图
 作业3：Harris角点检测/Test Images/*
+作业4：EigenFace人脸识别/*.jpg
+作业4：EigenFace人脸识别/*.jpeg
+
+#训练模型
+作业4：EigenFace人脸识别/Private Models

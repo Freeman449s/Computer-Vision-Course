@@ -8,6 +8,7 @@ import math
 MODEL_FILE_PATH = "model.npy"
 AVG_FILE_PATH = "avg.npy"
 FACE_LIB_PATH = "ORL Library"
+MY_FACE_LIB_PATH = "My Face Lib"
 TEST_FACE_PATH = "Test Face.pgm"
 INF = 1E38
 
@@ -85,7 +86,7 @@ def train(faces: list, energyRatio: float) -> tuple:
     return (avg, baseVecs)
 
 
-def showTopTen(baseVecs: np.ndarray, WIDTH: int, HEIGHT: int) -> None:
+def showAvgAndTopTen(baseVecs: np.ndarray, WIDTH: int, HEIGHT: int) -> None:
     """
     显示前十张特征脸\n
     :param baseVecs: 基向量矩阵
@@ -93,7 +94,7 @@ def showTopTen(baseVecs: np.ndarray, WIDTH: int, HEIGHT: int) -> None:
     :param HEIGHT: 人脸图的高度
     :return: 无返回值
     """
-    # N_PIXEL = baseVecs.shape[0]
+    N_PIXEL = baseVecs.shape[0]
     for i in range(0, 10):
         face = np.array(baseVecs[:, i])
         face = np.resize(face, (HEIGHT, WIDTH))
@@ -113,6 +114,21 @@ def showTopTen(baseVecs: np.ndarray, WIDTH: int, HEIGHT: int) -> None:
     # cv2.waitKey(0)
 
 
+def showAvg(avg: np.ndarray, WIDTH: int, HEIGHT: int) -> None:
+    """
+    展示平均脸\n
+    :param avg: 平均脸（向量形式）
+    :param WIDTH: 人脸图的宽度
+    :param HEIGHT: 人脸图的高度
+    :return: 无返回值
+    """
+    avgMat = np.resize(avg, (HEIGHT, WIDTH))
+    plt.imshow(avgMat, cmap="gray")
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+
+
 def reconstruct(face: np.ndarray, avg: np.ndarray, baseVecs: np.ndarray, N_PCS: int) -> np.ndarray:
     """
     将传入人脸变换到特征脸空间再重构\n
@@ -126,7 +142,7 @@ def reconstruct(face: np.ndarray, avg: np.ndarray, baseVecs: np.ndarray, N_PCS: 
     """
     WIDTH = face.shape[1]
     HEIGHT = face.shape[0]
-    faceCoord = computeCoord(face, avg, baseVecs)
+    faceCoord = computeCoord(face, avg, baseVecs, N_PCS)
     # k = baseVecs.shape[1]
     N_PIXEL = WIDTH * HEIGHT
     reconFace = np.zeros((N_PIXEL, 1), float)
@@ -194,22 +210,23 @@ def vecCos(vecA: np.ndarray, vecB: np.ndarray) -> float:
     return np.sum(vecA * vecB) / np.linalg.norm(vecA) / np.linalg.norm(vecB)
 
 
-def findMostSimilar(face: np.ndarray, faces: list, avg: np.ndarray, baseVecs: np.ndarray) -> np.ndarray:
+def findMostSimilar(face: np.ndarray, faces: list, avg: np.ndarray, baseVecs: np.ndarray, N_PCS: int) -> np.ndarray:
     """
     在人脸库中寻找与给定人脸最相似的人脸\n
     :param face: 输入人脸
     :param faces: 人脸库
     :param avg: 平均脸
     :param baseVecs: 基向量矩阵
+    :param N_PCS: 使用的坐标的维数
     :return: 最相似人脸的灰度图
     """
     mostSimilar = faces[0]
-    faceCoord = computeCoord(face, avg, baseVecs)
-    libFaceCoord = computeCoord(mostSimilar, avg, baseVecs)
+    faceCoord = computeCoord(face, avg, baseVecs, N_PCS)
+    libFaceCoord = computeCoord(mostSimilar, avg, baseVecs, N_PCS)
     maxSim = vecCos(faceCoord, libFaceCoord)
     for i in range(1, len(faces)):
         libFace = faces[i]
-        libFaceCoord = computeCoord(libFace, avg, baseVecs)
+        libFaceCoord = computeCoord(libFace, avg, baseVecs, N_PCS)
         sim = vecCos(faceCoord, libFaceCoord)
         if sim > maxSim:
             mostSimilar = libFace
@@ -217,8 +234,17 @@ def findMostSimilar(face: np.ndarray, faces: list, avg: np.ndarray, baseVecs: np
     return mostSimilar
 
 
-def identify(face: np.ndarray, faces: list, avg: np.ndarray, baseVecs: np.ndarray) -> None:
-    mostSimilar = findMostSimilar(face, faces, avg, baseVecs)
+def identify(face: np.ndarray, faces: list, avg: np.ndarray, baseVecs: np.ndarray, N_PCS: int) -> None:
+    """
+    查找并显示最相似的人脸\n
+    :param face: 待识别人脸
+    :param faces: 人脸库
+    :param avg: 平均脸
+    :param baseVecs: 基向量
+    :param N_PCS: 使用的坐标的维数
+    :return: 无返回值
+    """
+    mostSimilar = findMostSimilar(face, faces, avg, baseVecs, N_PCS)
     # 显示输入人脸
     plt.subplot(1, 3, 1)
     plt.imshow(face, cmap="gray")
@@ -267,10 +293,10 @@ def sortEigVecs(eigVals: np.ndarray, eigVecs: np.ndarray, LENGTH: int) -> None:
         eigVecs[:, j + 1] = keyVec[:, 0]
 
 
-def readFaces() -> list:
+def readFaces() -> tuple:
     """
     从本地读取人脸图像\n
-    :return: 人脸图像组成的列表
+    :return: 库人脸的列表以及自己人脸的列表组成的元组
     """
     faces = []
     for outerRoot, outerDirs, outerFiles in os.walk(FACE_LIB_PATH):
@@ -282,7 +308,14 @@ def readFaces() -> list:
                     face = cv2.imread(filePath)
                     face = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)  # 读入的人脸是三通道灰度图
                     faces.append(face)
-    return faces
+    myFaces = []
+    for root, dirs, files in os.walk(MY_FACE_LIB_PATH):
+        for file in files:
+            filePath = os.path.join(root, file)
+            face = cv2.imread(filePath)
+            face = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
+            myFaces.append(face)
+    return (faces, myFaces)
 
 
 def readFace(filePath: str) -> np.ndarray:
@@ -328,12 +361,16 @@ def importModel() -> tuple:
 
 
 def main() -> None:
-    faces = readFaces()
-    testFace = readFace(TEST_FACE_PATH)
-    avg, baseVecs = importModel()
-    FACE_WIDTH = faces[0].shape[1]
-    FACE_HEIGHT = faces[0].shape[0]
-    reconstruct(testFace, avg, baseVecs, 190)
+    orlFaces, myFaces = readFaces()
+    allFaces = orlFaces[:]
+    for i in range(0, len(myFaces)):
+        allFaces.append(myFaces[i])
+    train(orlFaces, 0.99)
+    # testFace = readFace("My Test Face.jpg")
+    # avg, baseVecs = importModel()
+    # FACE_WIDTH = faces[0].shape[1]
+    # FACE_HEIGHT = faces[0].shape[0]
+    # k = baseVecs.shape[1]
 
 
 main()
