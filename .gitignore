@@ -123,10 +123,13 @@ dmypy.json
 # Pycharm项目文件
 */.idea
 
-# 测试图
+# 测试文件
 作业3：Harris角点检测/Test Images/*
 作业4：EigenFace人脸识别/*.jpg
 作业4：EigenFace人脸识别/*.jpeg
+作业4：EigenFace人脸识别/Results
+作业4：EigenFace人脸识别/Batch Train Lib
+作业4：EigenFace人脸识别/Batch Test Lib
 
-#训练模型
+# 训练模型
 作业4：EigenFace人脸识别/Private Models

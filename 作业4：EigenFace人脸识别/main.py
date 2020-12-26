@@ -5,12 +5,22 @@ from Errors import IllegalArgumentError
 import matplotlib.pyplot as plt
 import math
 
-MODEL_FILE_PATH = "model.npy"
-AVG_FILE_PATH = "avg.npy"
+MODEL_FILE_PATH = "Open Models/model-ORL-0.99.npy"
+AVG_FILE_PATH = "Open Models/avg-ORL.npy"
 FACE_LIB_PATH = "ORL Library"
 MY_FACE_LIB_PATH = "My Face Lib"
 TEST_FACE_PATH = "Test Face.pgm"
 INF = 1E38
+
+
+class Face():
+    """
+    人脸类，以人脸图像和人的id作为成员，用于批量测试
+    """
+
+    def __init__(self, id, face):
+        self.id = id
+        self.face = face
 
 
 def train(faces: list, energyRatio: float) -> tuple:
@@ -86,7 +96,7 @@ def train(faces: list, energyRatio: float) -> tuple:
     return (avg, baseVecs)
 
 
-def showAvgAndTopTen(baseVecs: np.ndarray, WIDTH: int, HEIGHT: int) -> None:
+def showTopTen(baseVecs: np.ndarray, WIDTH: int, HEIGHT: int) -> None:
     """
     显示前十张特征脸\n
     :param baseVecs: 基向量矩阵
@@ -360,17 +370,96 @@ def importModel() -> tuple:
     return (avg, baseVecs)
 
 
+def findMostSimilarObj(face: Face, faces: list, avg: np.ndarray, baseVecs: np.ndarray, N_PCS: int) -> Face:
+    """
+    为传入的人脸（对象）在库中找到最相似的人脸（对象）
+    :param face: 待匹配人脸对象
+    :param faces: 人脸对象库
+    :param avg: 平均脸
+    :param baseVecs: 基向量矩阵
+    :param N_PCS: 使用的基向量的数量
+    :return: 最相似的人脸对象
+    """
+    mostSimilar = faces[0]
+    faceCoord = computeCoord(face.face, avg, baseVecs, N_PCS)
+    libFaceCoord = computeCoord(mostSimilar.face, avg, baseVecs, N_PCS)
+    maxSim = vecCos(faceCoord, libFaceCoord)
+    for i in range(1, len(faces)):
+        libFace = faces[i]
+        libFaceCoord = computeCoord(libFace.face, avg, baseVecs, N_PCS)
+        sim = vecCos(faceCoord, libFaceCoord)
+        if sim > maxSim:
+            mostSimilar = libFace
+            maxSim = sim
+    return mostSimilar
+
+
+def batchTest(N_PCS: int) -> float:
+    """
+    批量测试，评估模型正确率\n
+    :param N_PCS: 使用基向量的个数
+    :return: 正确率
+    """
+    # 导入人脸
+    id = 0
+    trainFaceObjs = []
+    trainFaces = []
+    testFaceObjs = []
+    for outerRoot, outerDirs, outerFiles in os.walk("Batch Train Lib"):
+        for outerDir in outerDirs:
+            outerDirPath = os.path.join(outerRoot, outerDir)
+            for innerRoot, innerDirs, innerFiles in os.walk(outerDirPath):
+                for file in innerFiles:
+                    filePath = os.path.join(innerRoot, file)
+                    face = cv2.imread(filePath)
+                    face = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
+                    trainFaces.append(face)
+                    trainFaceObjs.append(Face(id, face))
+            id += 1
+    for outerRoot, outerDirs, outerFiles in os.walk("Batch Test Lib"):
+        for outerDir in outerDirs:
+            outerDirPath = os.path.join(outerRoot, outerDir)
+            for innerRoot, innerDirs, innerFiles in os.walk(outerDirPath):
+                for file in innerFiles:
+                    filePath = os.path.join(innerRoot, file)
+                    face = cv2.imread(filePath)
+                    face = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
+                    testFaceObjs.append(Face(id, face))
+            id += 1
+    # 训练模型
+    avg, baseVecs = train(trainFaces, 0.99)
+    # 评估模型
+    N_TESTS = len(testFaceObjs)
+    N_CORRECT_TESTS = 0
+    for testFaceObj in testFaceObjs:
+        mostSimilar = findMostSimilarObj(testFaceObj, trainFaceObjs, avg, baseVecs, N_PCS)
+        # 展示匹配结果
+        plt.subplot(2, 1, 1)
+        plt.imshow(testFaceObj.face, cmap="gray")
+        plt.xticks([])
+        plt.yticks([])
+        plt.subplot(2,1,2)
+        plt.imshow(mostSimilar.face,cmap="gray")
+        plt.xticks([])
+        plt.yticks([])
+        plt.show()
+        if mostSimilar.id == testFaceObj.id:
+            N_CORRECT_TESTS += 1
+    return N_CORRECT_TESTS / N_TESTS
+
+
 def main() -> None:
-    orlFaces, myFaces = readFaces()
-    allFaces = orlFaces[:]
-    for i in range(0, len(myFaces)):
-        allFaces.append(myFaces[i])
-    train(orlFaces, 0.99)
+    # orlFaces, myFaces = readFaces()
+    # allFaces = orlFaces[:]
+    # for i in range(0, len(myFaces)):
+    #     allFaces.append(myFaces[i])
     # testFace = readFace("My Test Face.jpg")
     # avg, baseVecs = importModel()
-    # FACE_WIDTH = faces[0].shape[1]
-    # FACE_HEIGHT = faces[0].shape[0]
+    # FACE_WIDTH = orlFaces[0].shape[1]
+    # FACE_HEIGHT = orlFaces[0].shape[0]
     # k = baseVecs.shape[1]
+    # reconstruct(testFace, avg, baseVecs, 190)
+    print(batchTest(10))
 
 
 main()
