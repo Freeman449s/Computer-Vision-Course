@@ -3,10 +3,9 @@ import os
 import cv2
 from Errors import IllegalArgumentError
 import matplotlib.pyplot as plt
-import math
 
-MODEL_FILE_PATH = "Open Models/model-ORL-0.99.npy"
-AVG_FILE_PATH = "Open Models/avg-ORL.npy"
+MODEL_FILE_PATH = "Open Models/model-Test-0.99.npy"
+AVG_FILE_PATH = "Open Models/avg-Test.npy"
 FACE_LIB_PATH = "ORL Library"
 MY_FACE_LIB_PATH = "My Face Lib"
 TEST_FACE_PATH = "Test Face.pgm"
@@ -28,7 +27,6 @@ def train(faces: list, energyRatio: float) -> tuple:
     训练模型\n
     :param faces: 人脸数据
     :param energyRatio: 能量比，用于确定所需基向量的个数
-    :param modelFilePath: 用于储存模型的文件的路径
     :return: 平均脸和基向量组成的矩阵
     """
     # Step1: 二维矩阵转向量
@@ -145,8 +143,6 @@ def reconstruct(face: np.ndarray, avg: np.ndarray, baseVecs: np.ndarray, N_PCS: 
     :param face: 待重构人脸
     :param avg: 平均脸
     :param baseVecs: 基向量矩阵
-    :param WIDTH: 重构图像的宽度
-    :param HEIGHT: 重构图像的高度
     :param N_PCS: 重构使用的主元个数
     :return: 重构的人脸（已映射到[0,255]）
     """
@@ -339,9 +335,10 @@ def readFace(filePath: str) -> np.ndarray:
     return face
 
 
-def importModel() -> tuple:
+def importModel(avgFilePath: str, modelFilePath: str) -> tuple:
     """
     从文件中读取模型\n
+    :param avgFilePath: 平均脸文件路径
     :param modelFilePath: 模型文件路径
     :return: 平均脸和基向量矩阵
     """
@@ -365,8 +362,8 @@ def importModel() -> tuple:
     #         for row in range(0, len(elements)):
     #             baseVecs[row][col] = float(elements[row])
     #         col += 1
-    baseVecs = np.load(MODEL_FILE_PATH)
-    avg = np.load(AVG_FILE_PATH)
+    baseVecs = np.load(modelFilePath)
+    avg = np.load(avgFilePath)
     return (avg, baseVecs)
 
 
@@ -404,7 +401,6 @@ def batchTest(N_PCS: int) -> float:
     id = 0
     trainFaceObjs = []
     trainFaces = []
-    testFaceObjs = []
     for outerRoot, outerDirs, outerFiles in os.walk("Batch Train Lib"):
         for outerDir in outerDirs:
             outerDirPath = os.path.join(outerRoot, outerDir)
@@ -416,6 +412,8 @@ def batchTest(N_PCS: int) -> float:
                     trainFaces.append(face)
                     trainFaceObjs.append(Face(id, face))
             id += 1
+    id = 0
+    testFaceObjs = []
     for outerRoot, outerDirs, outerFiles in os.walk("Batch Test Lib"):
         for outerDir in outerDirs:
             outerDirPath = os.path.join(outerRoot, outerDir)
@@ -427,22 +425,24 @@ def batchTest(N_PCS: int) -> float:
                     testFaceObjs.append(Face(id, face))
             id += 1
     # 训练模型
-    avg, baseVecs = train(trainFaces, 0.99)
+    # avg, baseVecs = train(trainFaces, 0.99)
+    # 导入模型
+    avg, baseVecs = importModel(AVG_FILE_PATH, MODEL_FILE_PATH)
     # 评估模型
     N_TESTS = len(testFaceObjs)
     N_CORRECT_TESTS = 0
     for testFaceObj in testFaceObjs:
         mostSimilar = findMostSimilarObj(testFaceObj, trainFaceObjs, avg, baseVecs, N_PCS)
         # 展示匹配结果
-        plt.subplot(2, 1, 1)
-        plt.imshow(testFaceObj.face, cmap="gray")
-        plt.xticks([])
-        plt.yticks([])
-        plt.subplot(2,1,2)
-        plt.imshow(mostSimilar.face,cmap="gray")
-        plt.xticks([])
-        plt.yticks([])
-        plt.show()
+        # plt.subplot(2, 1, 1)
+        # plt.imshow(testFaceObj.face, cmap="gray")
+        # plt.xticks([])
+        # plt.yticks([])
+        # plt.subplot(2, 1, 2)
+        # plt.imshow(mostSimilar.face, cmap="gray")
+        # plt.xticks([])
+        # plt.yticks([])
+        # plt.show()
         if mostSimilar.id == testFaceObj.id:
             N_CORRECT_TESTS += 1
     return N_CORRECT_TESTS / N_TESTS
@@ -459,7 +459,15 @@ def main() -> None:
     # FACE_HEIGHT = orlFaces[0].shape[0]
     # k = baseVecs.shape[1]
     # reconstruct(testFace, avg, baseVecs, 190)
-    print(batchTest(10))
+    x = np.linspace(1, 100, 100)  # 产生1~100的100个数字
+    y = np.zeros((100, 1), float)
+    for i in range(1, 101):
+        y[i - 1][0] = batchTest(i)
+    plt.plot(x, y)
+    plt.title("Rank-1 Recognition Rate")
+    plt.xlabel("N_PCS")
+    plt.ylabel("Recognition Rate")
+    plt.show()
 
 
 main()
