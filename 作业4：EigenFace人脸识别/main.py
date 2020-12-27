@@ -22,11 +22,13 @@ class Face():
         self.face = face
 
 
-def train(faces: list, energyRatio: float) -> tuple:
+def train(faces: list, energyRatio: float, avgFilePath: str, modelFilePath: str) -> tuple:
     """
     训练模型\n
     :param faces: 人脸数据
     :param energyRatio: 能量比，用于确定所需基向量的个数
+    :param avgFilePath: 用于存储平均脸的文件路径
+    :param modelFilePath: 用于存储模型的文件路径
     :return: 平均脸和基向量组成的矩阵
     """
     # Step1: 二维矩阵转向量
@@ -89,8 +91,8 @@ def train(faces: list, energyRatio: float) -> tuple:
     #             if row < N_PIXEL - 1:
     #                 file.write(" ")
     #         file.write("\n")
-    np.save(MODEL_FILE_PATH, baseVecs)
-    np.save(AVG_FILE_PATH, avg)
+    np.save(modelFilePath, baseVecs)
+    np.save(avgFilePath, avg)
     return (avg, baseVecs)
 
 
@@ -367,23 +369,22 @@ def importModel(avgFilePath: str, modelFilePath: str) -> tuple:
     return (avg, baseVecs)
 
 
-def findMostSimilarObj(face: Face, faces: list, avg: np.ndarray, baseVecs: np.ndarray, N_PCS: int) -> Face:
+def findMostSimilarObj(libFaceObjs: list, faceCoord: np.ndarray, libFaceCoords: list, N_PCS: int) -> Face:
     """
     为传入的人脸（对象）在库中找到最相似的人脸（对象）
-    :param face: 待匹配人脸对象
-    :param faces: 人脸对象库
-    :param avg: 平均脸
-    :param baseVecs: 基向量矩阵
-    :param N_PCS: 使用的基向量的数量
+    :param libFaceObjs: 人脸对象库
+    :param faceCoord: 待匹配人脸的坐标（不小于N_PCS维）
+    :param libFaceCoords: 人脸库中人脸的坐标（不小于N_PCS维）
+    :param N_PCS: 使用的坐标的维度数
     :return: 最相似的人脸对象
     """
-    mostSimilar = faces[0]
-    faceCoord = computeCoord(face.face, avg, baseVecs, N_PCS)
-    libFaceCoord = computeCoord(mostSimilar.face, avg, baseVecs, N_PCS)
+    faceCoord = faceCoord[0:N_PCS]
+    mostSimilar = libFaceObjs[0]
+    libFaceCoord = libFaceCoords[0][0:N_PCS]
     maxSim = vecCos(faceCoord, libFaceCoord)
-    for i in range(1, len(faces)):
-        libFace = faces[i]
-        libFaceCoord = computeCoord(libFace.face, avg, baseVecs, N_PCS)
+    for i in range(1, len(libFaceObjs)):
+        libFace = libFaceObjs[i]
+        libFaceCoord = libFaceCoords[i][0:N_PCS]
         sim = vecCos(faceCoord, libFaceCoord)
         if sim > maxSim:
             mostSimilar = libFace
@@ -428,11 +429,17 @@ def batchTest(N_PCS: int) -> float:
     # avg, baseVecs = train(trainFaces, 0.99)
     # 导入模型
     avg, baseVecs = importModel(AVG_FILE_PATH, MODEL_FILE_PATH)
+    # 预先为库中的人脸计算坐标
+    libFaceCoords = []
+    for libFace in trainFaceObjs:
+        coord = computeCoord(libFace.face, avg, baseVecs, baseVecs.shape[1])
+        libFaceCoords.append(coord)
     # 评估模型
     N_TESTS = len(testFaceObjs)
     N_CORRECT_TESTS = 0
     for testFaceObj in testFaceObjs:
-        mostSimilar = findMostSimilarObj(testFaceObj, trainFaceObjs, avg, baseVecs, N_PCS)
+        testFaceCoord = computeCoord(testFaceObj.face, avg, baseVecs, baseVecs.shape[1])
+        mostSimilar = findMostSimilarObj(trainFaceObjs, testFaceCoord, libFaceCoords, N_PCS)
         # 展示匹配结果
         # plt.subplot(2, 1, 1)
         # plt.imshow(testFaceObj.face, cmap="gray")
@@ -449,8 +456,9 @@ def batchTest(N_PCS: int) -> float:
 
 
 def main() -> None:
-    # orlFaces, myFaces = readFaces()
-    # allFaces = orlFaces[:]
+    orlFaces, myFaces = readFaces()
+    allFaces = orlFaces[:]
+    train(orlFaces, 0.99, "Open Models/avg-ORL.npy", "Open Models/model-ORL-0.99.npy")
     # for i in range(0, len(myFaces)):
     #     allFaces.append(myFaces[i])
     # testFace = readFace("My Test Face.jpg")
@@ -459,15 +467,16 @@ def main() -> None:
     # FACE_HEIGHT = orlFaces[0].shape[0]
     # k = baseVecs.shape[1]
     # reconstruct(testFace, avg, baseVecs, 190)
-    x = np.linspace(1, 100, 100)  # 产生1~100的100个数字
-    y = np.zeros((100, 1), float)
-    for i in range(1, 101):
-        y[i - 1][0] = batchTest(i)
-    plt.plot(x, y)
-    plt.title("Rank-1 Recognition Rate")
-    plt.xlabel("N_PCS")
-    plt.ylabel("Recognition Rate")
-    plt.show()
+    # x = np.linspace(5, 100, 20)  # 产生5~100的20个数字
+    # y = np.zeros((20, 1), float)
+    # for i in range(1, 21):
+    #     N_PCS = i * 5
+    #     y[i - 1][0] = batchTest(N_PCS)
+    # plt.plot(x, y)
+    # plt.title("Rank-1 Recognition Rate")
+    # plt.xlabel("N_PCS")
+    # plt.ylabel("Recognition Rate")
+    # plt.show()
 
 
 main()
