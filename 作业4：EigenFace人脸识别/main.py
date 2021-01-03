@@ -458,14 +458,15 @@ def batchTest(N_PCS: int) -> float:
 def main() -> None:
     orlFaces, myFaces = readFaces()
     allFaces = orlFaces[:]
-    train(orlFaces, 0.99, "Open Models/avg-ORL.npy", "Open Models/model-ORL-0.99.npy")
-    # for i in range(0, len(myFaces)):
-    #     allFaces.append(myFaces[i])
-    # testFace = readFace("My Test Face.jpg")
-    # avg, baseVecs = importModel()
-    # FACE_WIDTH = orlFaces[0].shape[1]
-    # FACE_HEIGHT = orlFaces[0].shape[0]
-    # k = baseVecs.shape[1]
+    for i in range(0, len(myFaces)):
+        allFaces.append(myFaces[i])
+    # train(orlFaces, 0.99, "Open Models/avg-ORL.npy", "Open Models/model-ORL-0.99.npy")
+    testFace = readFace("Test.jpg")
+    avg, baseVecs = importModel("Open Models/avg-ORL.npy", "Open Models/model-ORL-0.99.npy")
+    FACE_WIDTH = orlFaces[0].shape[1]
+    FACE_HEIGHT = orlFaces[0].shape[0]
+    k = baseVecs.shape[1]
+    identify(testFace, allFaces, avg, baseVecs, 100)
     # reconstruct(testFace, avg, baseVecs, 190)
     # x = np.linspace(5, 100, 20)  # 产生5~100的20个数字
     # y = np.zeros((20, 1), float)
