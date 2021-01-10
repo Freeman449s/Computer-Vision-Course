@@ -115,8 +115,8 @@ dmypy.json
 .pyre/
 
 # 图像和视频
-作业1：无声短片/images
-作业1：无声短片/Record.mp4
+作业1：无声短片（熟悉OpenCV）/images
+作业1：无声短片（熟悉OpenCV）/Record.mp4
 作业4：EigenFace人脸识别/My Faces
 作业4：EigenFace人脸识别/My Face Lib
 

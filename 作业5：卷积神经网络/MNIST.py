@@ -3,9 +3,7 @@ import torchvision
 import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.nn.functional as F
-import numpy as np
 import torch.optim as optim
-import os
 
 
 class LeNet5(nn.Module):
