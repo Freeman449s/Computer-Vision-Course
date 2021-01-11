@@ -5,7 +5,6 @@ import torchvision.transforms as transforms
 from torch.utils.data.sampler import SubsetRandomSampler
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
 import matplotlib.pyplot as plt
 import torch.optim as optim
 import os
