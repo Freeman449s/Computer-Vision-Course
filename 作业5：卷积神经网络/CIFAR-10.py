@@ -20,23 +20,26 @@ class CNN(nn.Module):
         self.norm = nn.LocalResponseNorm(1)
         # 卷积层C4 16*16*18 -> 12*12*36
         self.conv2 = nn.Conv2d(18, 36, 5)
-        # 全连接层F7 6*6*36 -> 240
-        self.fc1 = nn.Linear(6 * 6 * 36, 240)
-        # 全连接层F8 240 -> 96
-        self.fc2 = nn.Linear(240, 96)
-        # 全连接层F9 96 -> 10
-        self.fc3 = nn.Linear(96, 10)
+        # 卷积层C7 12*12*36 -> 8*8*72
+        self.conv3 = nn.Conv2d(36, 72, 5)
+        # 全连接层F10 1*1*72 -> 36
+        self.fc1 = nn.Linear(72, 36)
+        # 全连接层F11 36 -> 10
+        self.fc2 = nn.Linear(36, 10)
+        # dropout
+        self.dropout = nn.Dropout(0.3)
         # 归一化
         self.softMax = nn.Softmax(0)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.norm(self.pool(F.relu(self.conv1(x))))
         x = self.norm(self.pool(F.relu(self.conv2(x))))
+        x = self.norm(self.pool(F.relu(self.conv3(x))))
         x = x.view(-1, self.__countDimensions(x))
+        x = self.dropout(x)
         x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        x = self.softMax(x)
+        x = self.dropout(x)
+        x = self.fc2(x)
         return x
 
     def __countDimensions(self, x: torch.Tensor) -> int:
