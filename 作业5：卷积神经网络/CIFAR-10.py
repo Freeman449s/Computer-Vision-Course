@@ -155,4 +155,4 @@ if __name__ == "__main__":
     testSet = torchvision.datasets.CIFAR10(root="Data/CIFAR", train=False, download=False, transform=transform)
     testLoader = torch.utils.data.DataLoader(testSet, batch_size=16, shuffle=False, num_workers=2)
 
-    test("State Dict/CIFAR-10.pth")
+    train()
