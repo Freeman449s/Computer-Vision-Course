@@ -20,7 +20,7 @@ class CNN(nn.Module):
         self.norm = nn.LocalResponseNorm(1)
         # 卷积层C4 16*16*18 -> 12*12*36
         self.conv2 = nn.Conv2d(18, 36, 5)
-        # 卷积层C7 12*12*36 -> 8*8*72
+        # 卷积层C7 6*6*36 -> 2*2*72
         self.conv3 = nn.Conv2d(36, 72, 5)
         # 全连接层F10 1*1*72 -> 36
         self.fc1 = nn.Linear(72, 36)
