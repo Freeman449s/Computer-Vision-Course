@@ -80,7 +80,7 @@ def opening() -> None:
     pilFrame = Image.fromarray(cv2Frame)  # 转为PIL图像
     draw = ImageDraw.Draw(pilFrame)  # 创建一个绘图对象
     fontStyle = ImageFont.truetype("font\\Dengb.TTF", size=48, encoding="UTF-8")  # 创建字体对象，字体使用华文新魏
-    draw.text(INFO_POSITION, "3180101042 唐敏哲", INFO_COLOR, font=fontStyle)
+    draw.text(INFO_POSITION, "Freeman", INFO_COLOR, font=fontStyle)
     infoImg = cv2.cvtColor(np.asarray(pilFrame), cv2.COLOR_RGB2BGR)  # 转换回cv图像
     nSeconds = 1
     for i in range(1, nSeconds * FPS + 1):

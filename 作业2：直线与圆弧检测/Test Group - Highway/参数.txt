@@ -1,2 +1,0 @@
-pickPairs_line
-	T = min(imgShape[0], imgShape[1]) / 2.2
